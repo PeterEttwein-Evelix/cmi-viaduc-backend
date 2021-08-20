@@ -54,6 +54,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DocumentConverterServiceStartedEvent.cs" />
+    <Compile Include="AbbyyEventType.cs" />
+    <Compile Include="AbbyyProgressEvent.cs" />
     <Compile Include="ExtractionStartRequest.cs" />
     <Compile Include="ExtractionStartResult.cs" />
     <Compile Include="IErrorResult.cs" />

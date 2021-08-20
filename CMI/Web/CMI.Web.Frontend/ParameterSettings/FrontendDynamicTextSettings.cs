@@ -42,7 +42,7 @@ namespace CMI.Web.Frontend.ParameterSettings
         public string DeliveryTypeReadingRoomFR { get; set; }
 
         [Description("Definiert den Text in der Lieferart Auswahl 'In den Lesesaal bestellen'. Sprache: IT")]
-        [DefaultValue("per consultazione nelle <strong>sale di lettura</strong>. Se la richiesta è effettuata 24 ore prima, i documenti sono disponibili il giorno desiderato nelle sale di lettura (martedì, mercoledì e giovedì)")]
+        [DefaultValue("per consultazione nelle <strong>sale di lettura</strong>. Se la richiesta è effettuata 24 ore prima, i documenti sono disponibili il giorno desiderato nelle sale di lettura (martedì, mercoledì e giovedì).")]
         public string DeliveryTypeReadingRoomIT { get; set; }
 
         [Description("Definiert den Text in der Lieferart Auswahl 'In den Lesesaal bestellen'. Sprache: EN")]

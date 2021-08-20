@@ -22,6 +22,7 @@ namespace CMI.Manager.Asset.Tests
         private readonly Mock<IConsumer<IAssetReady>> assetReady = new Mock<IConsumer<IAssetReady>>();
         private readonly Mock<ICacheHelper> cacheHelper = new Mock<ICacheHelper>();
         private readonly Mock<PasswordHelper> passwordHelper = new Mock<PasswordHelper>("seed");
+        private RepositoryPackage repositoryPackage;
 
         [SetUp]
         public void Setup()
@@ -30,13 +31,14 @@ namespace CMI.Manager.Asset.Tests
             cacheHelper.Reset();
             assetReady.Reset();
             passwordHelper.Reset();
+            repositoryPackage = new RepositoryPackage {PackageFileName = "testfile.zip", ArchiveRecordId = "112"};
         }
         
         [Test]
         public async Task If_transformation_failed_AssetReady_event_is_no_success()
         {
             // Arrange
-            assetManager.Setup(e => e.ConvertPackage("112", AssetType.Gebrauchskopie, false, "testfile.zip", null))
+            assetManager.Setup(e => e.ConvertPackage("112", AssetType.Gebrauchskopie, false, It.IsAny<RepositoryPackage>()))
                 .ReturnsAsync(new PackageConversionResult { Valid = false, FileName = "112.zip" });
 
             var harness = new InMemoryTestHarness();
@@ -47,13 +49,12 @@ namespace CMI.Manager.Asset.Tests
             try
             {
                 // Act
-                await harness.InputQueueSendEndpoint.Send<ITransformAsset>(new
+                await harness.InputQueueSendEndpoint.Send<ITransformAsset>(new TransformAsset
                 {
-                    ArchiveRecordId = "112",
-                    FileName = "testfile.zip",
                     AssetType = AssetType.Gebrauchskopie,
                     CallerId = "2222",
                     Recipient = "jon@doe.com",
+                    RepositoryPackage = repositoryPackage,
                     RetentionCategory = CacheRetentionCategory.UsageCopyPublic
                 });
 
@@ -91,7 +92,8 @@ namespace CMI.Manager.Asset.Tests
         public async Task If_transformation_success_AssetReady_event_is_success()
         {
             // Arrange
-            assetManager.Setup(e => e.ConvertPackage("113", AssetType.Gebrauchskopie, false, "testfile.zip", null))
+            repositoryPackage.ArchiveRecordId = "113";
+            assetManager.Setup(e => e.ConvertPackage("113", AssetType.Gebrauchskopie, false, It.IsAny<RepositoryPackage>()))
                 .ReturnsAsync(new PackageConversionResult {Valid = true, FileName = "113.zip"});
             cacheHelper.Setup(e => e.GetFtpUrl(It.IsAny<IBus>(), It.IsAny<CacheRetentionCategory>(), It.IsAny<string>()))
                 .ReturnsAsync("ftp://UsageCopyPublic:@someurl:9000/113");
@@ -106,11 +108,10 @@ namespace CMI.Manager.Asset.Tests
             try
             {
                 // Act
-                await harness.InputQueueSendEndpoint.Send<ITransformAsset>(new
+                await harness.InputQueueSendEndpoint.Send<ITransformAsset>(new TransformAsset
                 {
-                    ArchiveRecordId = "113",
-                    FileName = "testfile.zip",
                     AssetType = AssetType.Gebrauchskopie,
+                    RepositoryPackage = repositoryPackage,
                     CallerId = "2223",
                     RetentionCategory = CacheRetentionCategory.UsageCopyPublic
                 });
@@ -148,7 +149,8 @@ namespace CMI.Manager.Asset.Tests
         public async Task If_transformation_success_but_cache_upload_fails_AssetReady_event_is_failed()
         {
             // Arrange
-            assetManager.Setup(e => e.ConvertPackage("114", AssetType.Gebrauchskopie, false, "testfile.zip", null))
+            repositoryPackage.ArchiveRecordId = "114";
+            assetManager.Setup(e => e.ConvertPackage("114", AssetType.Gebrauchskopie, false, It.IsAny<RepositoryPackage>()))
                 .ReturnsAsync(new PackageConversionResult {Valid = true, FileName = "114.zip"});
             cacheHelper.Setup(e => e.GetFtpUrl(It.IsAny<IBus>(), It.IsAny<CacheRetentionCategory>(), It.IsAny<string>()))
                 .ReturnsAsync("ftp://UsageCopyPublic:@someurl:9000/114");
@@ -163,11 +165,10 @@ namespace CMI.Manager.Asset.Tests
             try
             {
                 // Act
-                await harness.InputQueueSendEndpoint.Send<ITransformAsset>(new
+                await harness.InputQueueSendEndpoint.Send<ITransformAsset>(new TransformAsset
                 {
-                    ArchiveRecordId = "114",
-                    FileName = "testfile.zip",
                     AssetType = AssetType.Gebrauchskopie,
+                    RepositoryPackage = repositoryPackage,
                     CallerId = "2224",
                     RetentionCategory = CacheRetentionCategory.UsageCopyPublic
                 });
@@ -205,7 +206,8 @@ namespace CMI.Manager.Asset.Tests
         public async Task If_transformation_is_benutzungskopie_AssetReady_event_is_false_original_file_is_zipped()
         {
             // Arrange
-            assetManager.Setup(e => e.ConvertPackage("115", AssetType.Benutzungskopie, false, "testfile.zip", null))
+            repositoryPackage.ArchiveRecordId = "115";
+            assetManager.Setup(e => e.ConvertPackage("115", AssetType.Benutzungskopie, false, It.IsAny<RepositoryPackage>()))
                 .ReturnsAsync(new PackageConversionResult {Valid = false, FileName = "115.zip"});
             assetManager.Setup(e => e.CreateZipFileWithPasswordFromFile(It.IsAny<string>(), "115", AssetType.Benutzungskopie))
                 .Returns("myZippedFile");
@@ -220,10 +222,10 @@ namespace CMI.Manager.Asset.Tests
             try
             {
                 // Act
-                await harness.InputQueueSendEndpoint.Send<ITransformAsset>(new
+                await harness.InputQueueSendEndpoint.Send<ITransformAsset>(new TransformAsset
                 {
                     OrderItemId = 115,
-                    FileName = "testfile.zip",
+                    RepositoryPackage = repositoryPackage,
                     AssetType = AssetType.Benutzungskopie,
                     CallerId = "2225",
                     RetentionCategory = CacheRetentionCategory.UsageCopyBenutzungskopie

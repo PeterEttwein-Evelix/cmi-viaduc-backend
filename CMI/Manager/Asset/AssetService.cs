@@ -56,12 +56,23 @@ namespace CMI.Manager.Asset
                     BusConfigurator.SetPrefetchCountForEndpoint(ec);
                 });
 
-                cfg.ReceiveEndpoint(BusConstants.AssetManagerTransformAssetMessageQueue,
-                    ec =>
-                    {
-                        ec.Consumer(ctx.Resolve<TransformPackageConsumer>);
-                        BusConfigurator.SetPrefetchCountForEndpoint(ec);
-                    });
+                cfg.ReceiveEndpoint(BusConstants.AssetManagerTransformAssetMessageQueue, ec =>
+                {
+                    ec.Consumer(ctx.Resolve<TransformPackageConsumer>);
+                    BusConfigurator.SetPrefetchCountForEndpoint(ec);
+                });
+
+                cfg.ReceiveEndpoint(BusConstants.AssetManagerPrepareForRecognition, ec =>
+                {
+                    ec.Consumer(ctx.Resolve<PrepareForRecognitionConsumer>);
+                    BusConfigurator.SetPrefetchCountForEndpoint(ec);
+                });
+
+                cfg.ReceiveEndpoint(BusConstants.AssetManagerPrepareForTransformation, ec =>
+                {
+                    ec.Consumer(ctx.Resolve<PrepareForTransformationConsumer>);
+                    BusConfigurator.SetPrefetchCountForEndpoint(ec);
+                });
 
                 cfg.ReceiveEndpoint(BusConstants.WebApiDownloadAssetRequestQueue, ec => { ec.Consumer(ctx.Resolve<DownloadAssetConsumer>); });
                 cfg.ReceiveEndpoint(BusConstants.WebApiGetAssetStatusRequestQueue, ec => { ec.Consumer(ctx.Resolve<GetAssetStatusConsumer>); });
@@ -74,7 +85,6 @@ namespace CMI.Manager.Asset
                         retryPolicy.Exponential(10, TimeSpan.FromSeconds(1), TimeSpan.FromMinutes(5), TimeSpan.FromSeconds(5)));
                 });
 
-                cfg.ReceiveEndpoint(BusConstants.MonitoringAbbyyOcrTestQueue, ec => { ec.Consumer(ctx.Resolve<AbbyyOcrTestConsumer>); });
                 cfg.ReceiveEndpoint(BusConstants.AssetManagerSchdeduleForPackageSyncMessageQueue, ec => { ec.Consumer(ctx.Resolve<ScheduleForPackageSyncConsumer>); });
                 cfg.ReceiveEndpoint(BusConstants.AssetManagerUpdatePrimaerdatenAuftragStatusMessageQueue, ec => { ec.Consumer(ctx.Resolve<UpdatePrimaerdatenAuftragStatusConsumer>); });
 
@@ -150,7 +160,7 @@ namespace CMI.Manager.Asset
         public IRequestClient<ExtractionStartRequest> CreateDocumentExtractionRequestClient(IComponentContext context)
         {
             // Ocr of a large pdf can take some time
-            var requestTimeout = TimeSpan.FromHours(12);
+            var requestTimeout = TimeSpan.FromHours(96);
             var busUri = new Uri(new Uri(BusConfigurator.Uri), BusConstants.DocumentConverterExtractionStartRequestQueue);
 
             return bus.CreateRequestClient<ExtractionStartRequest>(busUri, requestTimeout);

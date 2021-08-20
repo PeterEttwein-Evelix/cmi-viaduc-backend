@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using CMI.Contract.DocumentConverter;
 using CMI.Manager.DocumentConverter.Extraction;
 using CMI.Manager.DocumentConverter.Extraction.Interfaces;
 using CMI.Manager.DocumentConverter.Render;
 using FREngine;
+using MassTransit;
 using Serilog;
 
 namespace CMI.Manager.DocumentConverter.Abbyy
@@ -20,6 +21,10 @@ namespace CMI.Manager.DocumentConverter.Abbyy
     public class AbbyyWorker : IAbbyyWorker
     {
         private readonly IEnginesPool enginesPool;
+        private readonly IBus bus;
+        private string sourceFile;
+        private int lastPercentageNumber = -1;
+        private long lastPercentageLogTime;
 
         public static List<string> profiles = new List<string>
         {
@@ -33,9 +38,10 @@ namespace CMI.Manager.DocumentConverter.Abbyy
             "DocumentConversion_Speed"
         };
 
-        public AbbyyWorker(IEnginesPool enginesPool)
+        public AbbyyWorker(IEnginesPool enginesPool, IBus bus)
         {
             this.enginesPool = enginesPool;
+            this.bus = bus;
         }
 
         public ExtractionResult ExtractTextFromDocument(string inputFile, ITextExtractorSettings settings)
@@ -46,13 +52,13 @@ namespace CMI.Manager.DocumentConverter.Abbyy
             var engine = enginesPool.GetEngine();
             bool isRecycleRequired = false;
 
-
             try
             {
                 IFRDocument fineReaderDocument = null;
                 try
                 {
                     fineReaderDocument = LoadFineReaderDocument(inputFile, settings.TextExtractionProfile, engine);
+                    SubscribeExtractionEvents((FRDocument) fineReaderDocument);
                     fineReaderDocument.Process();
 
                     // Leerseiten überspringen bei einseitigen Dokumenten. 
@@ -88,6 +94,7 @@ namespace CMI.Manager.DocumentConverter.Abbyy
                 {
                     if (fineReaderDocument != null)
                     {
+                        UnsubscribeExtractionEvents((FRDocument) fineReaderDocument);
                         fineReaderDocument.Close();
                         if (Marshal.IsComObject(fineReaderDocument))
                         {
@@ -102,9 +109,30 @@ namespace CMI.Manager.DocumentConverter.Abbyy
                 isRecycleRequired = enginesPool.ShouldRestartEngine(ex);
                 retVal.HasError = true;
                 retVal.ErrorMessage = ex.Message;
+
+                // Push an error message to indicate that the item has failed
+                bus.Publish<AbbyyProgressEvent>(new
+                {
+                    __TimeToLive = TimeSpan.FromSeconds(3),
+                    File = sourceFile,
+                    Process = ProcessType.TextExtraction,
+                    EventType = AbbyyEventType.AbbyyOnProgressEvent,
+                    HasFailed = true
+                });
             }
             finally
             {
+                // Push the final message to indicate that the item is finished
+                bus.Publish<AbbyyProgressEvent>(new
+                {
+                    __TimeToLive = TimeSpan.FromSeconds(3),
+                    File = sourceFile,
+                    IsComplete = true,
+                    Percentage = 100,
+                    Process = ProcessType.TextExtraction,
+                    EventType = AbbyyEventType.AbbyyOnProgressEvent
+                });
+                
                 enginesPool.ReleaseEngine(engine, isRecycleRequired);
                 if (File.Exists(outputFile))
                 {
@@ -115,7 +143,7 @@ namespace CMI.Manager.DocumentConverter.Abbyy
             return retVal;
         }
 
-        public TransformResult TransformDocument(string profile, FileInfo sourceFile, FileInfo targetFile)
+        public TransformResult TransformDocument(string profile, FileInfo inputFile, FileInfo targetFile)
         {
             var retVal = new TransformResult();
 
@@ -127,7 +155,8 @@ namespace CMI.Manager.DocumentConverter.Abbyy
                 IFRDocument fineReaderDocument = null;
                 try
                 {
-                    fineReaderDocument = LoadFineReaderDocument(sourceFile.FullName, profile, engine);
+                    fineReaderDocument = LoadFineReaderDocument(inputFile.FullName, profile, engine);
+                    SubscribeTransformEvents((FRDocument) fineReaderDocument);
                     fineReaderDocument.Process();
 
                     fineReaderDocument.Export(targetFile.FullName, FileExportFormatEnum.FEF_PDF, null);
@@ -141,6 +170,7 @@ namespace CMI.Manager.DocumentConverter.Abbyy
                 {
                     if (fineReaderDocument != null)
                     {
+                        UnsubscribeTransformEvents((FRDocument) fineReaderDocument);
                         fineReaderDocument.Close();
                         if (Marshal.IsComObject(fineReaderDocument))
                         {
@@ -155,9 +185,29 @@ namespace CMI.Manager.DocumentConverter.Abbyy
                 isRecycleRequired = enginesPool.ShouldRestartEngine(ex);
                 retVal.HasError = true;
                 retVal.ErrorMessage = ex.Message;
+
+                // Push an error message to indicate that the item has failed
+                bus.Publish<AbbyyProgressEvent>(new
+                {
+                    __TimeToLive = TimeSpan.FromSeconds(3),
+                    File = sourceFile,
+                    Process = ProcessType.Rendering,
+                    EventType = AbbyyEventType.AbbyyOnProgressEvent,
+                    HasFailed = true
+                });
             }
             finally
             {
+                // Push the final message to indicate that the item is finished
+                bus.Publish<AbbyyProgressEvent>(new
+                {
+                    __TimeToLive = TimeSpan.FromSeconds(3),
+                    File = sourceFile,
+                    IsComplete = true,
+                    Percentage = 100,
+                    Process = ProcessType.Rendering,
+                    EventType = AbbyyEventType.AbbyyOnProgressEvent
+                });
                 enginesPool.ReleaseEngine(engine, isRecycleRequired);
             }
 
@@ -180,6 +230,7 @@ namespace CMI.Manager.DocumentConverter.Abbyy
             }
 
             var fineReaderDocument = engine.CreateFRDocumentFromImage(inputFile);
+            sourceFile = inputFile;
             return fineReaderDocument;
         }
 
@@ -201,5 +252,120 @@ namespace CMI.Manager.DocumentConverter.Abbyy
                 throw new Exception("Anzahl Dokumente überschritten");
             }
         }
+
+        #region Text Extraction Events
+        private void SubscribeExtractionEvents(FRDocument fineReaderDocument)
+        {
+            fineReaderDocument.OnPageProcessed += TextExtractionOnPageProcessed;
+            fineReaderDocument.OnProgress += TextExtractionOnProgress;
+            fineReaderDocument.OnWarning += TextExtractionOnWarning;
+        }
+
+        private void UnsubscribeExtractionEvents(FRDocument fineReaderDocument)
+        {
+            fineReaderDocument.OnPageProcessed -= TextExtractionOnPageProcessed;
+            fineReaderDocument.OnProgress -= TextExtractionOnProgress;
+            fineReaderDocument.OnWarning -= TextExtractionOnWarning;
+        }
+
+        private void TextExtractionOnWarning(FRDocument sender, int pageIndex, string warning, ref bool cancel)
+        {
+            Log.Warning("Abbyy text extraction warning info for {sourceFile} - warning message is <{warning}> on page {pageIndex}", sourceFile, warning, pageIndex + 1);
+        }
+
+        private void TextExtractionOnProgress(FRDocument sender, int percentage, ref bool cancel)
+        {
+            // If there is no change, we do not want to "overload" the log
+            // But log something at least every 30 seconds
+            if (lastPercentageNumber == percentage && TimeSpan.FromTicks(DateTime.Now.Ticks - lastPercentageLogTime).Seconds < 30)
+            {
+                return;
+            }
+
+            Log.Information("Abbyy text extraction progress info for {sourceFile} - Percentage done is {percentage}", sourceFile, percentage);
+            bus.Publish<AbbyyProgressEvent>(new 
+            {
+                __TimeToLive = TimeSpan.FromSeconds(3),
+                File = sourceFile,
+                Percentage = percentage,
+                Process = ProcessType.TextExtraction,
+                EventType = AbbyyEventType.AbbyyOnProgressEvent
+            });
+            lastPercentageNumber = percentage;
+            lastPercentageLogTime = DateTime.Now.Ticks;
+        }
+
+        private void TextExtractionOnPageProcessed(FRDocument sender, int pageIndex, PageProcessingStageEnum processingStage)
+        {
+            Log.Information("Abbyy text extraction process info for {sourceFile} - stage is {processingStage} and current page index is {pageIndex}", sourceFile, processingStage, pageIndex + 1);
+            bus.Publish<AbbyyProgressEvent>(new 
+            {
+                __TimeToLive = TimeSpan.FromSeconds(3),
+                File = sourceFile,
+                Page = pageIndex +1,
+                TotalPages = sender.Pages.Count,
+                Process = ProcessType.TextExtraction,
+                EventType = AbbyyEventType.AbbyyOnPageEvent
+            });
+        }
+        #endregion
+
+        #region Transform events
+        private void SubscribeTransformEvents(FRDocument fineReaderDocument)
+        {
+            fineReaderDocument.OnPageProcessed += TransformOnPageProcessed;
+            fineReaderDocument.OnProgress += TransformOnProgress;
+            fineReaderDocument.OnWarning += TransformOnWarning;
+        }
+
+        private void UnsubscribeTransformEvents(FRDocument fineReaderDocument)
+        {
+            fineReaderDocument.OnPageProcessed -= TransformOnPageProcessed;
+            fineReaderDocument.OnProgress -= TransformOnProgress;
+            fineReaderDocument.OnWarning -= TransformOnWarning;
+        }
+
+        private void TransformOnWarning(FRDocument sender, int pageIndex, string warning, ref bool cancel)
+        {
+            Log.Warning("Abbyy transform warning info for {sourceFile} - warning message is <{warning}> on page {pageIndex}", sourceFile, warning, pageIndex + 1);
+        }
+
+        private void TransformOnProgress(FRDocument sender, int percentage, ref bool cancel)
+        {
+            // If there is no change, we do not want to "overload" the log
+            // But log something at least every 30 seconds
+            if (lastPercentageNumber == percentage && TimeSpan.FromTicks(DateTime.Now.Ticks - lastPercentageLogTime).Seconds < 30)
+            {
+                return;
+            }
+
+            Log.Information("Abbyy transform progress info for {sourceFile} - Percentage done is {percentage}", sourceFile, percentage);
+            bus.Publish<AbbyyProgressEvent>(new
+            {
+                __TimeToLive = TimeSpan.FromSeconds(3),
+                File = sourceFile,
+                Percentage = percentage,
+                Process = ProcessType.Rendering,
+                EventType = AbbyyEventType.AbbyyOnProgressEvent
+            });
+            lastPercentageNumber = percentage;
+            lastPercentageLogTime = DateTime.Now.Ticks;
+        }
+
+        private void TransformOnPageProcessed(FRDocument sender, int pageIndex, PageProcessingStageEnum processingStage)
+        {
+            Log.Information("Abbyy transform process info for {sourceFile} - stage is {processingStage} and current page index is {pageIndex}", sourceFile, processingStage, pageIndex + 1);
+            bus.Publish<AbbyyProgressEvent>(new
+            {
+                __TimeToLive = TimeSpan.FromSeconds(3),
+                File = sourceFile,
+                Page = pageIndex + 1,
+                TotalPages = sender.Pages.Count,
+                Process = ProcessType.Rendering,
+                EventType = AbbyyEventType.AbbyyOnPageEvent
+            });
+        }
+        #endregion
+
     }
 }

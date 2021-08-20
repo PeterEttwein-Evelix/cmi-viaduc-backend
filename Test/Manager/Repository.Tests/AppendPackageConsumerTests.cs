@@ -1,12 +1,10 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
 using System.Threading.Tasks;
 using CMI.Contract.Common;
 using CMI.Contract.Messaging;
 using CMI.Manager.Repository.Consumer;
 using FluentAssertions;
 using MassTransit;
-using MassTransit.TestFramework;
 using MassTransit.Testing;
 using Moq;
 using NUnit.Framework;
@@ -122,7 +120,7 @@ namespace CMI.Manager.Repository.Tests
         }
 
         [Test]
-        public async Task If_Package_is_valid_extract_fulltext_is_initiated()
+        public async Task If_Package_is_valid_preprocessing_of_asset_is_initiated()
         {
             try
             {
@@ -156,8 +154,8 @@ namespace CMI.Manager.Repository.Tests
                 Assert.That(await harness.Consumed.Any<IArchiveRecordAppendPackage>());
                 Assert.That(await appendPackageConsumer.Consumed.Any<IArchiveRecordAppendPackage>());
 
-                Assert.That(await harness.Sent.Any<IArchiveRecordExtractFulltextFromPackage>());
-                var context = harness.Sent.Select<IArchiveRecordExtractFulltextFromPackage>().First().Context;
+                Assert.That(await harness.Sent.Any<PrepareForRecognitionMessage>());
+                var context = harness.Sent.Select<PrepareForRecognitionMessage>().First().Context;
 
                 // Assert
                 context.Message.ArchiveRecord.ArchiveRecordId.Should().Be(ar.ArchiveRecordId);

@@ -30,6 +30,8 @@ namespace CMI.Web.Frontend.DependencyInjection
             var connectionString = FrontendSettingsViaduc.Instance.SqlConnectionString;
             var sftpLicenseKey = WebHelper.Settings["sftpLicenseKey"];
 
+            builder.RegisterType<ExcelExportHelper>().AsSelf();
+            builder.RegisterType<VeExportRecordHelper>().AsSelf();
             builder.RegisterType<ParameterHelper>().As<IParameterHelper>();
             builder.Register(c => c.Resolve<IParameterHelper>().GetSetting<DigitalisierungsbeschraenkungSettings>()).AsSelf();
             builder.Register(c => c.Resolve<IParameterHelper>().GetSetting<ManagementClientSettings>()).AsSelf();

@@ -107,8 +107,8 @@
     </Reference>
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Diagnostics.DiagnosticSource, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Diagnostics.DiagnosticSource.4.7.1\lib\net46\System.Diagnostics.DiagnosticSource.dll</HintPath>
+    <Reference Include="System.Diagnostics.DiagnosticSource, Version=5.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\System.Diagnostics.DiagnosticSource.5.0.0\lib\net46\System.Diagnostics.DiagnosticSource.dll</HintPath>
     </Reference>
     <Reference Include="System.Drawing" />
     <Reference Include="System.IO.Compression.FileSystem" />
@@ -120,8 +120,8 @@
     <Reference Include="System.Numerics.Vectors, Version=4.1.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\..\..\packages\System.Numerics.Vectors.4.5.0\lib\net46\System.Numerics.Vectors.dll</HintPath>
     </Reference>
-    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=4.0.6.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Runtime.CompilerServices.Unsafe.4.7.0\lib\netstandard2.0\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=5.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\System.Runtime.CompilerServices.Unsafe.5.0.0\lib\net45\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
     </Reference>
     <Reference Include="System.Runtime.Remoting" />
     <Reference Include="System.Threading.Channels, Version=4.0.2.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
@@ -154,17 +154,18 @@
   <ItemGroup>
     <Compile Include="AssetManager.cs" />
     <Compile Include="AssetService.cs" />
-    <Compile Include="Consumers\AbbyyOcrTestConsumer.cs" />
     <Compile Include="Consumers\AssetReadyConsumer.cs" />
     <Compile Include="Consumers\PrepareAssetConsumer.cs" />
     <Compile Include="Consumers\GetAssetStatusConsumer.cs" />
     <Compile Include="Consumers\DownloadAssetConsumer.cs" />
     <Compile Include="Consumers\ExtractFulltextPackageConsumer.cs" />
+    <Compile Include="Consumers\PrepareForRecognitionConsumer.cs" />
+    <Compile Include="Consumers\PrepareForTransformationConsumer.cs" />
     <Compile Include="Consumers\ScheduleForPackageSyncConsumer.cs" />
-    <Compile Include="Consumers\TestConversionResult.cs" />
     <Compile Include="Consumers\TransformPackageConsumer.cs" />
     <Compile Include="Consumers\UpdatePrimaerdatenAuftragStatusConsumer.cs" />
     <Compile Include="Infrasctructure\SchedulerConfigurator.cs" />
+    <Compile Include="IPdfManipulator.cs" />
     <Compile Include="IScanProcessor.cs" />
     <Compile Include="Jobs\CheckPendingDownloadRecordsJob.cs" />
     <Compile Include="Jobs\DeleteOldRecordsJob.cs" />
@@ -188,16 +189,10 @@
     </Compile>
     <Compile Include="ScanProcessor.cs" />
     <Compile Include="Infrasctructure\ContainerConfigurator.cs" />
-    <Compile Include="IOcrTester.cs" />
     <Compile Include="PackageConversionResult.cs" />
     <Compile Include="ProcessType.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Documentation.cs" />
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
@@ -206,10 +201,6 @@
     <Compile Include="ParameterSettings\ScansZusammenfassenSettings.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
     <None Include="app.config">
       <SubType>Designer</SubType>
     </None>
@@ -291,9 +282,6 @@
       <Project>{5d97035e-1738-40c1-88ad-0c80622d6b9b}</Project>
       <Name>CMI.Utilities.Template</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="Resources\AbbyyTiffTest.tif" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

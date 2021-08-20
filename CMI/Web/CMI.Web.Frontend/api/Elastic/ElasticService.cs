@@ -19,6 +19,7 @@ using Newtonsoft.Json.Linq;
 using Serilog;
 using SourceFilter = Nest.SourceFilter;
 
+
 namespace CMI.Web.Frontend.api.Elastic
 {
     public class ElasticService : IElasticService
@@ -75,7 +76,6 @@ namespace CMI.Web.Frontend.api.Elastic
 
             var resultPart = client.Search<TreeRecord>(x => x
                 .Index(elasticSettings.DefaultIndex)
-                .Type(elasticSettings.DefaultTypeName)
                 .From(0)
                 .Sort(s => s.Ascending(nameof(TreeRecord.Title).ToLowerCamelCase()))
                 .Sort(s => s.Ascending(nameof(TreeRecord.TreeSequence).ToLowerCamelCase()))
@@ -132,6 +132,10 @@ namespace CMI.Web.Frontend.api.Elastic
                 stopwatch.Start();
                 var searchRequest = BuildSearchRequest(query, access);
                 result.Response = client.Search<T>(searchRequest);
+
+                var json = client.RequestResponseSerializer.SerializeToString(searchRequest, SerializationFormatting.Indented);
+                Log.Debug(json);
+
                 stopwatch.Stop();
                 result.TimeInMilliseconds = stopwatch.ElapsedMilliseconds;
                 Debug.WriteLine($"Fetched record from web in  {stopwatch.ElapsedMilliseconds}ms");
@@ -287,6 +291,8 @@ namespace CMI.Web.Frontend.api.Elastic
                 request.Explain = true;
             }
 
+            request.TrackTotalHits = true;
+
             return request;
         }
 
@@ -392,35 +398,34 @@ namespace CMI.Web.Frontend.api.Elastic
                             "The parameter sortOrder contains an invalid value. Valid values: 'ascending', 'descending', empty");
                 }
 
-                searchRequest.Sort.Add(new SortField {Field = orderBy, Order = sortOrder});
+                searchRequest.Sort.Add(new FieldSort {Field = orderBy, Order = sortOrder});
 
                 // Falls teilweise nach mehreren Feldern sortiert werden soll, könnte eine Ergänzung wie folgt hinzugefügt werden:
                 // if (orderBy == "treePath")
                 // {
-                //    searchRequest.Sort.Add(new SortField { Field = "treeSequence", Order = sortOrder });
+                //    searchRequest.Sort.Add(new FieldSort { Field = "treeSequence", Order = sortOrder });
                 // }
             }
 
-            searchRequest.Sort.Add(new SortField {Field = "_score", Order = SortOrder.Descending});
+            searchRequest.Sort.Add(new FieldSort {Field = "_score", Order = SortOrder.Descending});
 
             // Das folgende Sortierfeld ist ein "tie-breaker", damit die Reihenfolge immer klar definiert ist, auch wenn alle bisherigen Sort-Felder den gleichen Inhalt haben.
             // Die Reihenfolge muss definiert sein, damit das Paging funktioniert, denn wenn sich die Reihenfolge ändert zwischen zwei Seitenaufrufen,
             // wäre ein Paging sinnlos.
-            searchRequest.Sort.Add(new SortField {Field = "referenceCode", Order = SortOrder.Ascending});
+            searchRequest.Sort.Add(new FieldSort(){ Field = "referenceCode", Order = SortOrder.Ascending });
         }
 
-        private static void AddAggregations(SearchRequest<ElasticArchiveRecord> searchRequest, FacetFilters[] facetsFilters)
+        private static void AddAggregations(SearchRequest<ElasticArchiveRecord> searchRequest, FacetFilters[] facetsFilters )
         {
             var aggregations = CreateFacet(new TermsAggregation("level") {Field = "level.keyword", Size = int.MaxValue}, facetsFilters);
             aggregations &=
-                CreateFacet(new TermsAggregation("customFields.zugänglichkeitGemässBga") {Field = "customFields.zugänglichkeitGemässBga", Size = 25},
-                    facetsFilters);
-            aggregations &=
-                CreateFacet(
-                    new TermsAggregation("aggregationFields.ordnungskomponenten") {Field = "aggregationFields.ordnungskomponenten", Size = 25},
-                    facetsFilters);
-            aggregations &= CreateFacet(new TermsAggregation("aggregationFields.bestand") {Field = "aggregationFields.bestand", Size = 25},
-                facetsFilters); // Performance: Limit to 25
+                CreateFacet(new TermsAggregation("customFields.zugänglichkeitGemässBga") {Field = "customFields.zugänglichkeitGemässBga", Size = 25}, facetsFilters);
+
+            aggregations &= CreateFacet(
+                new TermsAggregation("aggregationFields.ordnungskomponenten") {Field = "aggregationFields.ordnungskomponenten", 
+                Size = facetsFilters != null && facetsFilters.Any(fac => fac.Facet.Equals("aggregationFields.ordnungskomponenten") && fac.ShowAll) ? int.MaxValue : 25 }, facetsFilters);
+            aggregations &= CreateFacet(new TermsAggregation("aggregationFields.bestand") {Field = "aggregationFields.bestand",
+                Size = facetsFilters != null && facetsFilters.Any(fac => fac.Facet.Equals("aggregationFields.bestand") && fac.ShowAll) ? int.MaxValue : 25 }, facetsFilters); // Performance: Limit to 25
             aggregations &=
                 CreateFacet(new TermsAggregation("aggregationFields.hasPrimaryData") {Field = "aggregationFields.hasPrimaryData", Missing = "false"},
                     facetsFilters);
@@ -614,7 +619,8 @@ namespace CMI.Web.Frontend.api.Elastic
             var response = result.Response;
 
             var hits = response?.Hits ?? new List<IHit<T>>();
-            result.TotalNumberOfHits = response?.HitsMetadata != null ? (int) response.HitsMetadata.Total : -1;
+
+            result.TotalNumberOfHits = response?.HitsMetadata != null ? (int)response.HitsMetadata.Total.Value : -1;
             var entries = new List<Entity<T>>();
             foreach (var hit in hits)
             {
@@ -685,11 +691,10 @@ namespace CMI.Web.Frontend.api.Elastic
 
         internal static JObject GetHighlightingObj<T>(IHit<T> hit, UserAccess access) where T : TreeRecord
         {
-            if (hit.Highlights == null || !hit.Highlights.Any())
+            if (hit.Highlight == null || !hit.Highlight.Any())
             {
                 return null;
             }
-
 
             var titleHighlight = FindHighlights(hit, "title");
             var metaDataHighlight = FindHighlights(hit, "all_Metadata_Text")?.ToList();
@@ -745,8 +750,9 @@ namespace CMI.Web.Frontend.api.Elastic
 
         private static List<string> FindHighlights<T>(IHit<T> hit, string key) where T : TreeRecord
         {
-            var foundHighlight = hit.Highlights.FirstOrDefault(kv => kv.Key == key);
-            return foundHighlight.Value?.Highlights.ToList();
+            var foundHighlight = hit.Highlight.FirstOrDefault(kv => kv.Key == key);
+
+            return foundHighlight.Value?.ToList();
         }
 
         /// <summary>

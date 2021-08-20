@@ -66,19 +66,33 @@ namespace CMI.Manager.Order.Status
 
         private void AddOrderItemToNeueEinsichtsgesucheEMail()
         {
-            dynamic emailExpando =
-                Context.MailPortfolio.GetUnfinishedMailData<NeuesEinsichtsgesuch>("NeueEinsichtsgesuche");
+            dynamic emailExpando = Context.MailPortfolio.GetUnfinishedMailData<NeuesEinsichtsgesuch>("NeueEinsichtsgesuche");
 
             if (emailExpando == null)
             {
+                string subject = string.IsNullOrEmpty(Context.CurrentUser.Organization) ? 
+                    $"Neues Einsichtsgesuch: {Context.CurrentUser.FirstName}, {Context.CurrentUser.FamilyName}, {Context.CurrentUser.Town} / {Context.Ordering.OrderDate} / {Context.Ordering.Id}" :
+                    $"Neues Einsichtsgesuch: {Context.CurrentUser.FirstName}, {Context.CurrentUser.FamilyName}, {Context.CurrentUser.Organization}, {Context.CurrentUser.Town} / {Context.Ordering.OrderDate} / {Context.Ordering.Id}";
+            
                 // Das EMail mit seine Grunddaten erstellen:
                 emailExpando = new DataBuilder(Context.Bus)
                     .AddUser(Context.Ordering.UserId)
                     .AddBestellung(Context.Ordering)
                     .AddVeList(new List<string>())
+                    .AddValue("ArtDerArbeit", null)
+                    .AddValue("Anzahl", 0)
+                    .AddValue("Subject", subject)
                     .Create();
 
                 Context.MailPortfolio.BeginUnfinishedMail<NeuesEinsichtsgesuch>("NeueEinsichtsgesuche", emailExpando);
+            }
+
+            int count = emailExpando.Anzahl;
+            emailExpando.Anzahl = count + 1;
+            if (Context.Ordering.ArtDerArbeit != null)
+            {
+                List<int> list = new List<int> { (int)Context.Ordering.ArtDerArbeit };
+                emailExpando.ArtDerArbeit = new Stammdaten(list, "ArtDerArbeit");
             }
 
             // die Ve zum EMail hinzufügen:

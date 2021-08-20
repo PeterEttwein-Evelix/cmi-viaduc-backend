@@ -39,7 +39,7 @@ namespace CMI.Manager.Order.Consumers
 
                 // Wir warten hier, damit wir sicher sind, das Elastic den neuen Record auch aktualisiert und nach aussen öffentlich verfügbar hat.
                 // Nicht vergessen. Elastic ist nur "near real time". https://www.elastic.co/guide/en/elasticsearch/reference/master/near-real-time.html 
-                await Task.Delay(3000);
+                await Task.Delay(5000);
                 var archiveRecord = (await findArchiveRecordClient.GetResponse<FindArchiveRecordResponse>(new FindArchiveRecordRequest {ArchiveRecordId = message.ArchiveRecordId})).Message;
 
                 // Ist das LastSyncDate der VE im Elastic-Index grösser als das Bestelldatum? (--> Es wurde eine Synchronisation mit dem AIS durchgeführt.)

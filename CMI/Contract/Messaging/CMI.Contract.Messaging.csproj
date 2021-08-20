@@ -64,6 +64,10 @@
     <Compile Include="GetElasticLogRecordsRequest.cs" />
     <Compile Include="GetElasticLogRecordsResponse.cs" />
     <Compile Include="GetHarvestLogInfo.cs" />
+    <Compile Include="PrepareForRecognitionMessage.cs" />
+    <Compile Include="PrepareForTransformationMessage.cs" />
+    <Compile Include="SyncInfoForReportRequest.cs" />
+    <Compile Include="SyncInfoForReportResponse.cs" />
     <Compile Include="GetStammdatenRequest.cs" />
     <Compile Include="GetStammdatenResponse.cs" />
     <Compile Include="IArchiveRecordAppendPackage.cs" />

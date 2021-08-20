@@ -10,6 +10,7 @@ using CMI.Web.Common.api.Attributes;
 using CMI.Web.Common.Helpers;
 using CMI.Web.Frontend.api.Elastic;
 using CMI.Web.Frontend.api.Interfaces;
+using CMI.Web.Frontend.Helpers;
 using Newtonsoft.Json.Linq;
 using WebGrease.Css.Extensions;
 
@@ -21,10 +22,12 @@ namespace CMI.Web.Frontend.api.Controllers
     {
         private readonly IElasticService elasticService;
         private readonly FavoriteDataAccess sqlDataAccess = new FavoriteDataAccess(WebHelper.Settings["sqlConnectionString"]);
+        private readonly VeExportRecordHelper veExportRecordHelper;
 
-        public FavoritesController(IElasticService elasticService)
+        public FavoritesController(IElasticService elasticService, VeExportRecordHelper veExportRecordHelper)
         {
             this.elasticService = elasticService;
+            this.veExportRecordHelper  = veExportRecordHelper;
         }
 
         [HttpGet]
@@ -115,6 +118,15 @@ namespace CMI.Web.Frontend.api.Controllers
             sqlDataAccess.RenameList(ControllerHelper.GetCurrentUserId(), listId, newName);
         }
 
+        [HttpGet]
+        public IHttpActionResult ExportList(int listId)
+        {
+            var list = sqlDataAccess.GetList(ControllerHelper.GetCurrentUserId(), listId);
+            list.Items = GetFavoritesContainedOnList(listId);
+            return ResponseMessage(veExportRecordHelper.CreateExcelFile(ConvertExportData(list.Items.Where(i => i is VeFavorite).ToList()), 
+                GetUserAccess(WebHelper.GetClientLanguage(Request)).Language));
+        }
+
         [HttpPost]
         public IHttpActionResult AddSearchFavorite([FromUri] int listId, [FromBody] SearchFavorite favorite)
         {
@@ -173,6 +185,9 @@ namespace CMI.Web.Frontend.api.Controllers
                         continue;
                     }
 
+                    veFavorite.CustomFields = elasticHit.Data?.CustomFields; 
+                    veFavorite.WithinInfo = elasticHit.Data?.WithinInfo;
+                    veFavorite.Accessibility = elasticHit.Data?.Accessibility;
                     veFavorite.Title = elasticHit.Data?.Title;
                     veFavorite.Level = elasticHit.Data?.Level;
                     veFavorite.CreationPeriod = elasticHit.Data?.CreationPeriod?.Text;
@@ -219,5 +234,25 @@ namespace CMI.Web.Frontend.api.Controllers
                 throw new InvalidOperationException("Unexpected error during migration. See server logs for details.");
             }
         }
+
+        private List<VeExportRecord> ConvertExportData(List<IFavorite> searchResults)
+        {
+            return searchResults.Select(item => new VeExportRecord
+            {
+                // ReSharper disable PossibleNullReferenceException
+                ReferenceCode = (item as VeFavorite).ReferenceCode,
+                FileReference = (item as VeFavorite).CustomFields != null && ((IDictionary<string, object>)(item as VeFavorite).CustomFields).ContainsKey("aktenzeichen") ?
+                    VeExportRecordHelper.GetCustomField((item as VeFavorite).CustomFields, "aktenzeichen"): (item as VeFavorite).VeId.ToString(),
+                Title = item.Title,
+                CreationPeriod = (item as VeFavorite).CreationPeriod,
+                WithinInfo = (item as VeFavorite).WithinInfo,
+                Level = (item as VeFavorite).Level,
+                Accessibility =
+                    (item as VeFavorite).CustomFields != null && ((IDictionary<string, object>)(item as VeFavorite).CustomFields).ContainsKey("zugänglichkeitGemässBga") ?
+                    VeExportRecordHelper.GetCustomField((item as VeFavorite).CustomFields, "zugänglichkeitGemässBga") : (item as VeFavorite).Accessibility
+                // ReSharper enable PossibleNullReferenceException
+            }).ToList();
+        }
+
     }
 }
