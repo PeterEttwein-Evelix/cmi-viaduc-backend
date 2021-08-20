@@ -50,6 +50,9 @@ namespace CMI.Manager.Order
                 cfg.ReceiveEndpoint(BusConstants.OrderManagerGetStatusHistoryForOrderItemRequestQueue,
                     ec => { ec.Consumer(ctx.Resolve<GetStatusHistoryForOrderItemConsumer>); });
 
+                cfg.ReceiveEndpoint(string.Format(BusConstants.OrderManagagerRequestBase, nameof(GetPrimaerdatenReportRecordsRequest)),
+                    ec => { ec.Consumer(ctx.Resolve<IConsumer<GetPrimaerdatenReportRecordsRequest>>); });
+
                 cfg.ReceiveEndpoint(BusConstants.OrderManagerFindOrderingHistoryForVeRequestQueue,
                     ec => { ec.Consumer(ctx.Resolve<FindOrderHistoryForVeConsumer>); });
 
@@ -175,6 +178,9 @@ namespace CMI.Manager.Order
                     });
                 cfg.ReceiveEndpoint(BusConstants.OrderManagerMahnungVersendenRequestQueue,
                     ec => { ec.Consumer(ctx.Resolve<MahnungVersendenRequestConsumer>); });
+
+                cfg.ReceiveEndpoint(BusConstants.OrderManagerErinnerungVersendenRequestQueue,
+                    ec => { ec.Consumer(ctx.Resolve<ErinnerungVersendenRequestConsumer>); });
 
                 helper.SubscribeAllSettingsInAssembly(Assembly.GetExecutingAssembly(), cfg);
             });

@@ -14,7 +14,6 @@ using CMI.Contract.Messaging;
 using CMI.Contract.Parameter;
 using CMI.Engine.Asset;
 using CMI.Engine.Security;
-using CMI.Manager.Asset.Consumers;
 using CMI.Manager.Asset.ParameterSettings;
 using CMI.Manager.Asset.Properties;
 using Dasync.Collections;
@@ -27,7 +26,7 @@ using ZipFile = System.IO.Compression.ZipFile;
 
 namespace CMI.Manager.Asset
 {
-    public class AssetManager : IAssetManager, IOcrTester
+    public class AssetManager : IAssetManager
     {
         private readonly SchaetzungAufbereitungszeitSettings aufbereitungsZeitSettings;
         private readonly IPrimaerdatenAuftragAccess auftragAccess;
@@ -35,18 +34,18 @@ namespace CMI.Manager.Asset
         private readonly IRequestClient<FindArchiveRecordRequest> indexClient;
         private readonly AssetPackageSizeDefinition packageSizeDefinition;
         private readonly IParameterHelper parameterHelper;
+        private readonly IPdfManipulator pdfManipulator;
         private readonly PasswordHelper passwordHelper;
         private readonly IPreparationTimeCalculator preparationCalculator;
         private readonly IPackagePriorizationEngine priorizationEngine;
         private readonly IRenderEngine renderEngine;
-        private readonly IScanProcessor scanProcessor;
         private readonly ITextEngine textEngine;
         private readonly ITransformEngine transformEngine;
 
 
         public AssetManager(ITextEngine textEngine, IRenderEngine renderEngine, ITransformEngine transformEngine, PasswordHelper passwordHelper,
-            IParameterHelper parameterHelper,
-            IScanProcessor scanProcessor, IPreparationTimeCalculator preparationCalculator, IPrimaerdatenAuftragAccess auftragAccess,
+            IParameterHelper parameterHelper, IPdfManipulator pdfManipulator,
+            IPreparationTimeCalculator preparationCalculator, IPrimaerdatenAuftragAccess auftragAccess,
             IRequestClient<FindArchiveRecordRequest> indexClient,
             IPackagePriorizationEngine priorizationEngine, IBus bus)
         {
@@ -55,7 +54,7 @@ namespace CMI.Manager.Asset
             this.transformEngine = transformEngine;
             this.passwordHelper = passwordHelper;
             this.parameterHelper = parameterHelper;
-            this.scanProcessor = scanProcessor;
+            this.pdfManipulator = pdfManipulator;
             this.preparationCalculator = preparationCalculator;
             this.auftragAccess = auftragAccess;
             this.indexClient = indexClient;
@@ -73,8 +72,9 @@ namespace CMI.Manager.Asset
         /// </summary>
         /// <param name="mutationId">The mutation identifier.</param>
         /// <param name="archiveRecord">The archive record.</param>
+        /// <param name="primaerdatenAuftragId">The id number of the PrimaerdatenAuftrag</param>
         /// <returns><c>true</c> if successful, <c>false</c> otherwise.</returns>
-        public async Task<bool> ExtractFulltext(long mutationId, ArchiveRecord archiveRecord, int primaerdatenAuftragStatusId)
+        public async Task<bool> ExtractFulltext(long mutationId, ArchiveRecord archiveRecord, int primaerdatenAuftragId)
         {
             var packages = archiveRecord.PrimaryData;
             var processingTimeForMissingFiles = 0L;
@@ -83,31 +83,22 @@ namespace CMI.Manager.Asset
             {
                 var packageFileName = Path.Combine(Settings.Default.PickupPath, repositoryPackage.PackageFileName);
                 var fi = new FileInfo(packageFileName);
+                var tempFolder = Path.Combine(fi.DirectoryName ?? throw new InvalidOperationException(), fi.Name.Remove(fi.Name.Length - fi.Extension.Length));
                 var watch = Stopwatch.StartNew();
 
-                if (File.Exists(fi.FullName))
+                if (Directory.Exists(tempFolder))
                 {
-                    Log.Information("Found zip file {Name}. Starting to extract...", fi.Name);
-                    var tempFolder = Path.Combine(fi.DirectoryName, fi.Name.Remove(fi.Name.Length - fi.Extension.Length));
+                    Log.Information("Found unzipped files. Starting to process...");
+                    var sizeInBytesOnDisk = Directory.GetFiles(tempFolder, "*.*", SearchOption.AllDirectories).Select(f => new FileInfo(f).Length)
+                        .Sum();
+
                     try
                     {
-                        ZipFile.ExtractToDirectory(packageFileName, tempFolder);
-                        var sizeInBytesOnDisk = Directory.GetFiles(tempFolder, "*.*", SearchOption.AllDirectories).Select(f => new FileInfo(f).Length)
-                            .Sum();
-
-                        var status = new UpdatePrimaerdatenAuftragStatus
-                        {
-                            PrimaerdatenAuftragId = primaerdatenAuftragStatusId,
-                            Service = AufbereitungsServices.AssetService,
-                            Status = AufbereitungsStatusEnum.ZipEntpackt
-                        };
-                        await UpdatePrimaerdatenAuftragStatus(status);
-
                         await ProcessFiles(repositoryPackage.Files, Path.Combine(tempFolder, "content"), archiveRecord.ArchiveRecordId);
                         await ProcessFolders(repositoryPackage.Folders, Path.Combine(tempFolder, "content"), archiveRecord.ArchiveRecordId);
 
                         // if we are here everything is okay
-                        Log.Information("Successfully processed (fulltext extracted) zip file {Name}", fi.Name);
+                        Log.Information("Successfully processed files (fulltext extracted) from zip file {Name}", fi.Name);
                         processingTimeForMissingFiles += GetProcessingTimeOfIgnoredFilesInTicks(repositoryPackage.SizeInBytes - sizeInBytesOnDisk);
                     }
                     catch (Exception ex)
@@ -124,7 +115,7 @@ namespace CMI.Manager.Asset
                 }
                 else
                 {
-                    Log.Warning("Unable to find the zip file {packageFileName}. No text was extracted.", packageFileName);
+                    Log.Warning("Unable to find the unzipped files for {packageFileName}. No text was extracted.", packageFileName);
                     return false;
                 }
 
@@ -139,18 +130,16 @@ namespace CMI.Manager.Asset
         /// </summary>
         /// <param name="id">ArchiveRecordId oder OrderItemId</param>
         /// <param name="assetType">The asset type.</param>
-        /// <param name="fileName">Name of the package file to convert.</param>
-        /// <param name="packageId">The id of the ordered package</param>
+        /// <param name="package">The package to convert</param>
         /// <returns>PackageConversionResult.</returns>
-        public async Task<PackageConversionResult> ConvertPackage(string id, AssetType assetType, bool protectWithPassword, string fileName,
-            string packageId)
+        public async Task<PackageConversionResult> ConvertPackage(string id, AssetType assetType, bool protectWithPassword, RepositoryPackage package)
         {
             var retVal = new PackageConversionResult { Valid = true };
-            var packageFileName = Path.Combine(Settings.Default.PickupPath, fileName);
+            var packageFileName = Path.Combine(Settings.Default.PickupPath, package.PackageFileName);
             var fi = new FileInfo(packageFileName);
 
             // Make sure Gebrauchskopien have a packageId
-            if (assetType == AssetType.Gebrauchskopie && string.IsNullOrEmpty(packageId))
+            if (assetType == AssetType.Gebrauchskopie && string.IsNullOrEmpty(package.PackageId))
             {
                 throw new InvalidOperationException("Assets of type <Gebrauchskopie> require a packageId");
             }
@@ -158,34 +147,22 @@ namespace CMI.Manager.Asset
             if (File.Exists(fi.FullName))
             {
                 Log.Information("Found zip file {Name}. Starting to extract...", fi.Name);
-                var tempFolder = Path.Combine(fi.DirectoryName, fi.Name.Remove(fi.Name.Length - fi.Extension.Length));
+                var tempFolder = Path.Combine(fi.DirectoryName ?? throw new InvalidOperationException(), fi.Name.Remove(fi.Name.Length - fi.Extension.Length));
                 try
                 {
-                    // Extract zip file to disk
-                    ZipFile.ExtractToDirectory(packageFileName, tempFolder);
-
-                    if (assetType == AssetType.Benutzungskopie)
-                    {
-                        ConvertAreldaMetadataXml(tempFolder);
-                    }
-
                     var metadataFile = Path.Combine(tempFolder, "header", "metadata.xml");
                     var paket = (PaketDIP)Paket.LoadFromFile(metadataFile);
 
-                    // Create pdf documents from scanned jpeg 2000 scans.
-                    scanProcessor.ConvertSingleJpeg2000ScansToPdfDocuments(paket, tempFolder,
-                        parameterHelper.GetSetting<ScansZusammenfassenSettings>());
-
-                    // Get all the files from the subdirectory "content" in the extracted directory
-                    var files = new DirectoryInfo(Path.Combine(tempFolder, "content")).GetFiles("*.*", SearchOption.AllDirectories);
-                    await ConvertFiles(id, files, paket, tempFolder);
+                    var contentFolder = Path.Combine(tempFolder, "content");
+                    await ConvertFiles(id, package.Files, paket, contentFolder);
+                    await ConvertFolders(id, package.Folders, paket, contentFolder);
 
                     paket.Generierungsdatum = DateTime.Today;
                     ((Paket)paket).SaveToFile(metadataFile);
 
                     AddReadmeFile(tempFolder);
                     AddDesignFiles(tempFolder);
-                    CreateIndexHtml(tempFolder, packageId);
+                    CreateIndexHtml(tempFolder, package.PackageId);
 
                     // Create zip file with the name of the archive
                     var finalZipFolder = Path.Combine(fi.DirectoryName, assetType.ToString(), id);
@@ -424,14 +401,22 @@ namespace CMI.Manager.Asset
 
         public async Task<int> UpdatePrimaerdatenAuftragStatus(IUpdatePrimaerdatenAuftragStatus newStatus)
         {
-            var logId = await auftragAccess.UpdateStatus(new PrimaerdatenAuftragLog
+            if (newStatus.PrimaerdatenAuftragId > 0)
             {
-                PrimaerdatenAuftragId = newStatus.PrimaerdatenAuftragId,
-                Status = newStatus.Status,
-                Service = newStatus.Service,
-                ErrorText = newStatus.ErrorText
-            }, newStatus.Verarbeitungskanal ?? 0);
-            return logId;
+                Log.Information("Auftrag mit Id {PrimaerdatenAuftragId} wurde im {service}-Service auf Status {Status} gesetzt.",
+                    newStatus.PrimaerdatenAuftragId, newStatus.Service.ToString(), newStatus.Status.ToString());
+
+                var logId = await auftragAccess.UpdateStatus(new PrimaerdatenAuftragLog
+                {
+                    PrimaerdatenAuftragId = newStatus.PrimaerdatenAuftragId,
+                    Status = newStatus.Status,
+                    Service = newStatus.Service,
+                    ErrorText = newStatus.ErrorText
+                }, newStatus.Verarbeitungskanal ?? 0);
+                return logId;
+            }
+
+            return -1;
         }
 
         public async Task DeleteOldDownloadAndSyncRecords(int olderThanXDays)
@@ -439,35 +424,46 @@ namespace CMI.Manager.Asset
             await auftragAccess.DeleteOldDownloadAndSyncRecords(olderThanXDays);
         }
 
-        public async Task<TestConversionResult> TestConversion()
+        public async Task<bool> ExtractZipFile(ExtractZipArgument extractZipArgument)
         {
-            const string fileName = "AbbyyTiffTest.tif";
+            var primaerdatenAuftragId = extractZipArgument.PrimaerdatenAuftragId;
 
-            var assemblyLocation = AppDomain.CurrentDomain.BaseDirectory;
-            var img = Resources.AbbyyTiffTest;
-            var path = Path.Combine(assemblyLocation, fileName);
-            var file = new FileInfo(path);
+            var packageFileName = Path.Combine(Settings.Default.PickupPath, extractZipArgument.PackageFileName);
+            var fi = new FileInfo(packageFileName);
 
-            if (!file.Exists)
+            if (File.Exists(fi.FullName))
             {
-                img.Save(path);
-                if (!file.Exists)
+                Log.Information("Found zip file {Name}. Starting to extract...", fi.Name);
+                var tempFolder = Path.Combine(fi.DirectoryName ?? throw new InvalidOperationException(), fi.Name.Remove(fi.Name.Length - fi.Extension.Length));
+                try
                 {
-                    return new TestConversionResult(false, $"Unable to find file {file.FullName}");
+                    ZipFile.ExtractToDirectory(packageFileName, tempFolder);
+
+                    // Primaerdatenauftrag could be 0 if we have a Benutzungskopie
+                    if (primaerdatenAuftragId > 0)
+                    {
+
+                        var status = new UpdatePrimaerdatenAuftragStatus
+                        {
+                            PrimaerdatenAuftragId = primaerdatenAuftragId,
+                            Service = AufbereitungsServices.AssetService,
+                            Status = AufbereitungsStatusEnum.ZipEntpackt
+                        };
+                        await UpdatePrimaerdatenAuftragStatus(status);
+                    }
+
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Unexpected error while unzipping package {packageFileName}. Error Message is: {Message}", packageFileName, ex.Message);
+                    return false;
                 }
             }
 
-            var targetPath = await renderEngine.ConvertFile(file.FullName, "pdf");
-            if (targetPath == file.FullName)
-            {
-                return new TestConversionResult(false, "No conversion done. Abbyy not installed?");
-            }
-
-            return File.Exists(targetPath)
-                ? new TestConversionResult(true, "")
-                : new TestConversionResult(true, $"Could not find File in path: {targetPath}");
+            Log.Warning("Unable to find the zip file for {packageFileName}. Nothing was unzipped.", packageFileName);
+            return false;
         }
-
 
         private void CreateZipFile(string finalZipFolder, string finalZipFile, string tempFolder, bool createWithPassword, string id)
         {
@@ -483,7 +479,7 @@ namespace CMI.Manager.Asset
                     File.Delete(finalZipFile);
                 }
 
-                Directory.GetParent(finalZipFolder).Create();
+                Directory.GetParent(finalZipFolder)?.Create();
                 Directory.Move(tempFolder, finalZipFolder);
 
                 if (createWithPassword)
@@ -574,40 +570,71 @@ namespace CMI.Manager.Asset
             }
         }
 
-        private async Task ConvertFiles(string id, FileInfo[] files, PaketDIP paket, string tempFolder)
+        private async Task ConvertFolders(string id, List<RepositoryFolder> folders, PaketDIP paket, string tempFolder)
+        {
+            foreach (var repositoryFolder in folders)
+            {
+                var newPath = Path.Combine(tempFolder, repositoryFolder.PhysicalName);
+                await ConvertFiles(id, repositoryFolder.Files, paket, newPath);
+                await ConvertFolders(id, repositoryFolder.Folders, paket, newPath);
+            }
+        }
+
+        private async Task ConvertFiles(string id, List<RepositoryFile> files, PaketDIP paket, string tempFolder)
         {
             // Skip empty collections
-            if (files.Length == 0)
+            if (files.Count == 0)
             {
                 return;
             }
+
+            // Create the list with conversion files.
+            // This list will contain the splitted file names for processing
+            // This list does not contain files that didn't have the flag exported or should be skipped
+            var conversionFiles = pdfManipulator.ConvertToConversionFiles(files.ToList(), tempFolder, true);
 
             var sw = new Stopwatch();
             sw.Start();
             var parallelism = Settings.Default.DocumentTransformParallelism;
             Log.Information("Starting parallel document transform for-each-loop with parallelism of {parallelism} for {Count} files of archiveRecordId or orderId {id}",
-                parallelism, files.Length, id);
+                parallelism, files.Count, id);
             var supportedFileTypesForRendering = await renderEngine.GetSupportedFileTypes();
 
 
-            await files.ParallelForEachAsync(async file =>
+            await conversionFiles.ParallelForEachAsync(async conversionFile =>
             {
-                Log.Information("Start extracting text for file: {file} for archive record or order id {id}", file, id);
-                var convertedFile = await ConvertFile(file, paket, tempFolder, supportedFileTypesForRendering);
+                var file = new FileInfo(conversionFile.FullName);
+                Log.Information("Start conversion for file: {file} for archive record or order id {id}", file, id);
+                conversionFile.ConvertedFile = await ConvertFile(file, supportedFileTypesForRendering);
+            }, parallelism, true);
+
+            // Now stich back files that were possibly splitted
+            pdfManipulator.MergeSplittedFiles(conversionFiles);
+
+            // Update the metadata.xml for all the converted files
+            // As speed is not an issue, we're not doing it in parallel
+            foreach(var conversionFile in conversionFiles)
+            {
+                var file = new FileInfo(conversionFile.FullName);
+                if (string.IsNullOrEmpty(conversionFile.ParentId))
+                {
+                    MetadataXmlUpdater.UpdateFile(file, new FileInfo(conversionFile.ConvertedFile), paket, tempFolder);
+                }
+                
                 // Delete the original file, if the convertedFile exists and is not the same as the original file.
                 // In case of PDF the name of the original and converted file could be the same. --> PDF to PDF with OCR
-                if (!string.IsNullOrEmpty(convertedFile) && File.Exists(convertedFile) && convertedFile != file.FullName)
+                if (file.Exists && conversionFile.ConvertedFile != file.FullName)
                 {
                     file.Delete();
                 }
-            }, parallelism, true);
+            }
 
             sw.Stop();
             Log.Information("Finished parallel document transform for-each-loop with parallelism of {parallelism} for {Count} files of archiveRecordId or orderId {id} in {TotalSeconds}",
-                parallelism, files.Length, id, sw.Elapsed.TotalSeconds);
+                parallelism, files.Count, id, sw.Elapsed.TotalSeconds);
         }
 
-        private async Task<string> ConvertFile(FileInfo file, PaketDIP paket, string tempFolder, string[] supportedFileTypesForRendering)
+        private async Task<string> ConvertFile(FileInfo file, string[] supportedFileTypesForRendering)
         {
             if (!file.Exists)
             {
@@ -621,7 +648,6 @@ namespace CMI.Manager.Asset
 
             var targetExtension = GetTargetExtension(file);
             var convertedFile = await renderEngine.ConvertFile(file.FullName, targetExtension);
-            MetadataXmlUpdater.UpdateFile(file, new FileInfo(convertedFile), paket, tempFolder);
             return convertedFile;
         }
 
@@ -670,35 +696,36 @@ namespace CMI.Manager.Asset
 
             var supportedFileTypesForTextExtraction = await textEngine.GetSupportedFileTypes();
 
+            // Create the list with the text extraction files.
+            // This list will contain the splitted file names for processing
+            // This list does not contain files that didn't have the flag exported or should be skipped
+            var textExtractionFiles = pdfManipulator.ConvertToTextExtractionFiles(files, path);
+
             var sw = new Stopwatch();
             sw.Start();
             var parallelism = Settings.Default.TextExtractParallelism;
             Log.Information("Starting parallel ocr extraction for-each-loop with parallelism of {parallelism} for {Count} files of archiveRecordId {archiveRecord}",
                 parallelism, files.Count, archiveRecordId);
 
-            await files.ParallelForEachAsync(async repositoryFile =>
+            await textExtractionFiles.ParallelForEachAsync(async textExtractionFile =>
             {
-                var diskFile = new FileInfo(Path.Combine(path, repositoryFile.PhysicalName));
-                if (repositoryFile.Exported)
+                var diskFile = new FileInfo(textExtractionFile.FullName);
+                if (!diskFile.Exists)
                 {
-                    if (!diskFile.Exists)
-                    {
-                        Log.Warning("Unable to find file on disk at {diskFile} for {archiveRecordId}", diskFile, archiveRecordId);
-                    }
-
-                    // We have found a valid file. Extract the text if the extension is supported
-                    if (supportedFileTypesForTextExtraction.Contains(diskFile.Extension.Replace(".", "")))
-                    {
-                        Log.Information("Start extracting text for file: {FullName} for archive record id {archiveRecordId} on thread {threadId}", diskFile.FullName,
-                            archiveRecordId, Thread.CurrentThread.ManagedThreadId);
-                        repositoryFile.ContentText = await textEngine.ExtractText(diskFile.FullName);
-                    }
+                    Log.Warning("Unable to find file on disk at {diskFile} for {archiveRecordId}", diskFile, archiveRecordId);
                 }
-                else
+
+                // We have found a valid file. Extract the text if the extension is supported
+                if (supportedFileTypesForTextExtraction.Contains(diskFile.Extension.Replace(".", "")))
                 {
-                    Log.Information("Skipping {diskFile} as it was not downloaded from the repository", diskFile);
+                    Log.Information("Start extracting text for file: {FullName} for archive record id {archiveRecordId} on thread {threadId}", diskFile.FullName,
+                        archiveRecordId, Thread.CurrentThread.ManagedThreadId);
+                    textExtractionFile.ContentText = await textEngine.ExtractText(diskFile.FullName);
                 }
             }, parallelism, true);
+
+            // Now convert the extracted texts back to the original repository files
+            pdfManipulator.TransferExtractedText(textExtractionFiles, files);
 
             sw.Stop();
             Log.Information("Finished parallel ocr extraction for-each-loop with parallelism of {parallelism} for {Count} files of archiveRecordId {archiveRecord} in {TotalSeconds}",
@@ -739,25 +766,6 @@ namespace CMI.Manager.Asset
                 Log.Warning(
                     "Design files for usage copy could not be found. Make sure the files exist in the locaction <AssetManagerDir>\\Html\\design");
             }
-        }
-
-        private void ConvertAreldaMetadataXml(string tempFolder)
-        {
-            Log.Information("Converting arelda metadata.xml file...");
-
-            var metadataFile = Path.Combine(tempFolder, "header", "metadata.xml");
-            var transformationFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Html", "Xslt", "areldaConvert.xsl");
-
-            // IF one of the files does not exist, log warning and create an "error" index.html file.
-            if (!File.Exists(transformationFile) || !File.Exists(metadataFile))
-            {
-                throw new Exception(
-                    $"Could not find the transformation file or the source file to transform. Make sure the both file exists.\nTransformation file: {transformationFile}\nSource file: {metadataFile}");
-            }
-
-            var result = transformEngine.TransformXml(metadataFile, transformationFile, null);
-            File.WriteAllText(metadataFile, result);
-            Log.Information("Converted.");
         }
 
         private void CreateIndexHtml(string tempFolder, string packageId)

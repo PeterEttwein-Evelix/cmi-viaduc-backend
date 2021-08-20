@@ -9,6 +9,7 @@ namespace CMI.Access.Harvest.ScopeArchiv
     {
         ArchiveRecordDataSet.ArchiveRecordRow GetArchiveRecordRow(long recordId);
         List<MutationRecord> GetPendingMutations();
+        List<SyncInfoForReport> GetSyncInfoForReport(List<int> mutationsIds);
         ArchivePlanInfoDataSet LoadArchivePlanInfo(long[] recordIdList);
         ContainerDataSet LoadContainers(long recordId);
         DescriptorDataSet LoadDescriptors(long recordId);

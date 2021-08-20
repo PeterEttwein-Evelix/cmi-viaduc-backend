@@ -16,14 +16,14 @@ namespace CMI.Manager.ExternalContent.Infrastructure
             var builder = new ContainerBuilder();
 
             // register the different consumers and classes
-            builder.RegisterType<ExternalContentManager>().As<IExternalContentManager>();
+            builder.RegisterType<ExternalContentManager>().As<IExternalContentManager>().As<IReportExternalContentManager>();
             builder.RegisterType<LanguageSettings>().AsSelf();
             builder.RegisterType<ApplicationSettings>().AsSelf();
             builder.RegisterType<CachedLookupData>().AsSelf();
             builder.RegisterType<SipDateBuilder>().AsSelf();
             builder.RegisterType<DigitizationOrderBuilder>().AsSelf();
             builder.RegisterType<ArchiveRecordBuilder>().AsSelf();
-            builder.RegisterType<AISDataAccess>().As<IDbDigitizationOrderAccess>();
+            builder.RegisterType<AISDataAccess>().As<IDbExternalContentAccess>();
             builder.RegisterType<AISDataProvider>().As<IAISDataProvider>();
 
             // register all the consumers

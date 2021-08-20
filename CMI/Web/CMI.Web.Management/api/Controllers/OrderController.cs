@@ -4,8 +4,10 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using System.Web.Http;
+using System.Web.Http.Results;
 using CMI.Access.Sql.Viaduc;
 using CMI.Contract.Common;
+using CMI.Contract.Common.Extensions;
 using CMI.Contract.Messaging;
 using CMI.Contract.Order;
 using CMI.Contract.Parameter;
@@ -548,6 +550,36 @@ namespace CMI.Web.Management.api.Controllers
         }
 
         [HttpPost]
+        public async Task<IHttpActionResult> ErinnerungVersenden([FromBody] ErinnerungVersendenPostData erinnerungVersendenPost)
+        {
+            var access = this.GetManagementAccess();
+            access.AssertFeatureOrThrow(ApplicationFeature.AuftragsuebersichtAuftraegeErinnerungVersenden);
+            if (erinnerungVersendenPost == null)
+            {
+                return BadRequest("Keine Werte angegeben");
+            }
+
+            if (erinnerungVersendenPost.OrderItemIds?.Count == 0)
+            {
+                return BadRequest("Keine OrderItemIds angegeben");
+            }
+
+            if (!CheckNurErinnerbareAuftraegeEnthalten(erinnerungVersendenPost.OrderItemIds))
+            {
+                return BadRequest(
+                    "Es dürfen nur «Lesesaalausleihen» mit dem internen Status «Ausgeliehen» übergeben werden.");
+            }
+            var result = await orderManagerClient.ErinnerungVersenden(erinnerungVersendenPost.OrderItemIds, erinnerungVersendenPost.Language, access.UserId);
+
+            if (result.Success)
+            {
+                return Ok("success");
+            }
+
+            return BadRequest("");
+        }
+
+        [HttpPost]
         public async Task<IHttpActionResult> MahnungVersenden([FromBody] MahnungVersendenPostData mahnungVersendenPost)
         {
             var access = this.GetManagementAccess();
@@ -586,6 +618,15 @@ namespace CMI.Web.Management.api.Controllers
                                                         (i.Status != (int) OrderStatesInternal.Ausgeliehen ||
                                                          !(i.OrderingType == (int) OrderType.Lesesaalausleihen ||
                                                            i.OrderingType == (int) OrderType.Verwaltungsausleihe))).ToList();
+            return !items.Any();
+        }
+
+        private bool CheckNurErinnerbareAuftraegeEnthalten(List<int> orderItemIds)
+        {
+            var ctx = new ViaducContext(WebHelper.Settings["sqlConnectionString"]);
+            var items = ctx.OrderingFlatItem.Where(i => orderItemIds.Contains(i.ItemId) &&
+                                                        (i.Status != (int)OrderStatesInternal.Ausgeliehen ||
+                                                         i.OrderingType != (int)OrderType.Lesesaalausleihen)).ToList();
             return !items.Any();
         }
 
@@ -636,6 +677,13 @@ namespace CMI.Web.Management.api.Controllers
                     default:
                         throw new ArgumentOutOfRangeException(nameof(originAttribute.Table), $"Unknown table: {originAttribute.Table}");
                 }
+            }
+
+            if (flatItem.Status == (int)OrderStatesInternal.Ausgeliehen && !existingItem.Ausleihdauer.Equals(flatItem.Ausleihdauer))
+            {
+                var user = ControllerHelper.UserDataAccess.GetUser(ControllerHelper.GetCurrentUserId());
+                updateOrderItemData.InternalComment = updateOrderItemData.InternalComment.Prepend($"Erwartetes Rückgabedatum von {existingItem.Ausgabedatum.Value.AddDays(existingItem.Ausleihdauer):dd.MM.yyyy} auf" +
+                                                                                                  $" {flatItem.Ausgabedatum.Value.AddDays(flatItem.Ausleihdauer):dd.MM.yyyy} angepasst, {user.FirstName} {user.FamilyName}");
             }
 
             var data = new UpdateOrderDetailData

@@ -97,8 +97,8 @@
       <HintPath>..\..\..\packages\System.Console.4.3.1\lib\net46\System.Console.dll</HintPath>
     </Reference>
     <Reference Include="System.Core" />
-    <Reference Include="System.Diagnostics.DiagnosticSource, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Diagnostics.DiagnosticSource.4.7.1\lib\net46\System.Diagnostics.DiagnosticSource.dll</HintPath>
+    <Reference Include="System.Diagnostics.DiagnosticSource, Version=5.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\System.Diagnostics.DiagnosticSource.5.0.0\lib\net46\System.Diagnostics.DiagnosticSource.dll</HintPath>
     </Reference>
     <Reference Include="System.Diagnostics.Tracing, Version=4.1.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\..\..\packages\System.Diagnostics.Tracing.4.3.0\lib\net462\System.Diagnostics.Tracing.dll</HintPath>
@@ -155,8 +155,8 @@
       <Private>True</Private>
       <Private>True</Private>
     </Reference>
-    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=4.0.6.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Runtime.CompilerServices.Unsafe.4.7.0\lib\netstandard2.0\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=5.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\System.Runtime.CompilerServices.Unsafe.5.0.0\lib\net45\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
     </Reference>
     <Reference Include="System.Runtime.Extensions, Version=4.1.1.1, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\..\..\packages\System.Runtime.Extensions.4.3.1\lib\net462\System.Runtime.Extensions.dll</HintPath>
@@ -216,9 +216,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Consumers\ArchiveRecordUpdatedConsumer.cs" />
+    <Compile Include="Consumers\ErinnerungVersendenRequestConsumer.cs" />
     <Compile Include="Consumers\MahnungVersendenRequestConsumer.cs" />
     <Compile Include="Mails\AusleiheZweiteMahnung.cs" />
     <Compile Include="Mails\AusleiheErsteMahnung.cs" />
+    <Compile Include="Mails\ErinnerungTerminLesesaal.cs" />
     <Compile Include="RecalcTermineListener.cs" />
     <Compile Include="Consumers\AssetReadyConsumer.cs" />
     <Compile Include="Consumers\CreateOrderFromBasketRequestConsumer.cs" />
@@ -308,7 +310,6 @@
     <Compile Include="Status\ImBestellkorbStatus.cs" />
     <Compile Include="Status\EinsichtsgesuchPruefenStatus.cs" />
     <Compile Include="Status\FreigabePruefenStatus.cs" />
-    <Compile Include="Status\StringExtensions.cs" />
     <Compile Include="Status\Users.cs" />
     <Compile Include="Status\ZumReponierenBereitStatus.cs" />
     <Compile Include="Status\ZurücksetzenExtensions.cs" />
@@ -396,6 +397,7 @@
     <EmbeddedResource Include="Defaults\DigitalisierungNichtMoeglich.Body.mustache" />
     <EmbeddedResource Include="Defaults\AusleiheErsteMahnung.Body.mustache" />
     <EmbeddedResource Include="Defaults\AusleiheZweiteMahnung.Body.mustache" />
+    <EmbeddedResource Include="Defaults\ErinnerungTerminLesesaal.Body.mustache" />
     <None Include="packages.config" />
     <None Include="Properties\DbConnectionSetting.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

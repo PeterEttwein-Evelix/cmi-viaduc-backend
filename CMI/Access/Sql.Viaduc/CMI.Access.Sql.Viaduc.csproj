@@ -371,6 +371,12 @@
   <ItemGroup>
     <EmbeddedResource Include="SqlDbScripts\0077_TO_0078.sql" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="SqlDbScripts\0078_TO_0079.sql" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="SqlDbScripts\0079_TO_0080.sql" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

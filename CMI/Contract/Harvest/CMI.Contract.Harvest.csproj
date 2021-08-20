@@ -46,7 +46,7 @@
     <Compile Include="IDbMutationQueueAccess.cs" />
     <Compile Include="IDbResyncAccess.cs" />
     <Compile Include="IDbStatusAccess.cs" />
-    <Compile Include="IDbDigitizationOrderAccess.cs" />
+    <Compile Include="IDbExternalContentAccess.cs" />
     <Compile Include="IDbTestAccess.cs" />
     <Compile Include="MutationStatus.cs" />
     <Compile Include="OrderDetailData.cs" />

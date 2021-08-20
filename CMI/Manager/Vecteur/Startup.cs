@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Reflection;
 using System.Web.Http;
+using System.Web.Http.ExceptionHandling;
 using Autofac;
 using Autofac.Integration.WebApi;
 using CMI.Manager.Vecteur.Infrastructure;
@@ -29,8 +30,9 @@ namespace CMI.Manager.Vecteur
                 .EnableSwaggerUi(c => { c.EnableApiKeySupport("X-ApiKey", "header"); });
 
             config.MapHttpAttributeRoutes();
+            config.Services.Add(typeof(IExceptionLogger), new VecteurExceptionLogger());
             builder.RegisterApiControllers(Assembly.GetExecutingAssembly());
-
+            
             container = builder.Build();
             config.DependencyResolver = new AutofacWebApiDependencyResolver(container);
 

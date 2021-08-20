@@ -41,7 +41,9 @@ namespace CMI.Manager.Asset.Infrasctructure
             builder.RegisterType<MailHelper>().As<IMailHelper>();
             builder.RegisterType<DataBuilder>().As<IDataBuilder>();
             builder.RegisterType<ScanProcessor>().As<IScanProcessor>();
+            builder.RegisterType<PdfManipulator>().As<IPdfManipulator>();
             builder.RegisterType<PreparationTimeCalculator>().As<IPreparationTimeCalculator>();
+            builder.RegisterType<AssetPreparationEngine>().As<IAssetPreparationEngine>();
 
             // register the different consumers and classes
             builder.RegisterType<PrimaerdatenAuftragAccess>().As<IPrimaerdatenAuftragAccess>().WithParameter("connectionString", DbConnectionSetting.Default.ConnectionString);

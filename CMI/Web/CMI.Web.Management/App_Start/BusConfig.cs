@@ -3,6 +3,7 @@ using Autofac;
 using CMI.Contract.Messaging;
 using CMI.Contract.Monitoring;
 using CMI.Utilities.Bus.Configuration;
+using CMI.Web.Management.Consumers;
 using MassTransit;
 using Serilog;
 
@@ -15,7 +16,18 @@ namespace CMI.Web.Management
         public static void RegisterBus(this ContainerBuilder builder)
         {
             // Configure Bus
-            BusConfigurator.ConfigureBus(builder, MonitoredServices.NotMonitored, (cfg, ctx) => {});
+            BusConfigurator.ConfigureBus(builder, MonitoredServices.NotMonitored, (cfg, ctx) =>
+            {
+                cfg.ReceiveEndpoint(BusConstants.ManagementApiAbbyyProgressEventQueue, ec =>
+                {
+                    ec.Consumer(ctx.Resolve<AbbyyProgressEventConsumer>);
+                });
+                cfg.ReceiveEndpoint(BusConstants.ManagementApiDocumentConverterServiceStartedQueue, ec =>
+                {
+                    ec.Consumer(ctx.Resolve<DocumentConverterServiceStartedEventConsumer>);
+                });
+
+            });
             builder.Register(c => CreateFindArchiveRecordRequestClient()).As<IRequestClient<FindArchiveRecordRequest>>();
         }
 
@@ -62,6 +74,16 @@ namespace CMI.Web.Management
 
             return client;
         }
+        
+        public static IRequestClient<SyncInfoForReportRequest> GetExternalContentClient()
+        {
+            var requestTimeout = TimeSpan.FromMinutes(15);
+            var client = bus.CreateRequestClient<SyncInfoForReportRequest>(
+                new Uri(new Uri(BusConfigurator.Uri), BusConstants.ManagementApiGetReportExternalContent), requestTimeout);
+
+            return client;
+        }
+
 
         public static IRequestClient<DoesExistInCacheRequest> CreateDoesExistInCacheClient()
         {

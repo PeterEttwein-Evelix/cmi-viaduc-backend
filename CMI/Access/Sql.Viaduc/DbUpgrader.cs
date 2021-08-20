@@ -13,7 +13,7 @@ namespace CMI.Access.Sql.Viaduc
     {
         private readonly string connectionString;
         private readonly Regex regex = new Regex(@"\r\n?\s*GO\s*\r\n?", RegexOptions.IgnoreCase);
-        private readonly int sollVersion = 78;
+        private readonly int sollVersion = 80;
         private int istVersion;
 
 

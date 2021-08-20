@@ -22,6 +22,7 @@ The other repositories include the applications _public access_ ([cmi-viaduc-web
 - [Architecture and components of the solution](docs/architecture.md)
 - [Connection to AIS](docs/connection-ais.md)
 - [Connection to Digital Repository](docs/connection-dir.md)
+- [Email generation](docs/dataBuilder.md)
 
 # Authors
 

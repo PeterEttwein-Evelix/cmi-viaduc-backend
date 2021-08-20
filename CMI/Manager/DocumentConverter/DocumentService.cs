@@ -1,5 +1,6 @@
 ﻿using System;
 using Autofac;
+using CMI.Contract.DocumentConverter;
 using CMI.Contract.Messaging;
 using CMI.Contract.Monitoring;
 using CMI.Manager.DocumentConverter.Abbyy;
@@ -62,12 +63,29 @@ namespace CMI.Manager.DocumentConverter
                 cfg.ReceiveEndpoint(BusConstants.MonitoringDocumentConverterInfoQueue, ec =>
                 {
                     ec.Consumer(ctx.Resolve<DocumentConverterInfoConsumer>);
+                    ec.PrefetchCount = 4;
                 });
+
+                cfg.ReceiveEndpoint(BusConstants.MonitoringAbbyyOcrTestQueue, ec =>
+                {
+                    ec.Consumer(ctx.Resolve<AbbyyOcrTestConsumer>);
+                    // Do not allow more than 4 concurrent Abbyy calls
+                    ec.PrefetchCount = 4;
+                });
+
             });
 
             container = containerBuilder.Build();
             bus = container.Resolve<IBusControl>();
             bus.Start();
+
+            // Send event that document converter service is started
+            // Push an error message to indicate that the item has failed
+            bus.Publish<DocumentConverterServiceStartedEvent>(new
+            {
+                __TimeToLive = TimeSpan.FromSeconds(30),
+                StartTime = DateTime.Now
+            });
 
             Log.Information($"{serviceName} started");
         }

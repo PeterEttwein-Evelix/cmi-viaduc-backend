@@ -1,4 +1,5 @@
-﻿using Autofac;
+﻿using System.Reflection;
+using Autofac;
 using CMI.Access.Sql.Viaduc;
 using CMI.Access.Sql.Viaduc.AblieferndeStellen;
 using CMI.Access.Sql.Viaduc.File;
@@ -11,6 +12,8 @@ using CMI.Utilities.Template;
 using CMI.Web.Common.Auth;
 using CMI.Web.Common.Helpers;
 using CMI.Web.Management.api.Configuration;
+using CMI.Web.Management.Helpers;
+using CMI.Web.Management.api.Data;
 using MassTransit;
 
 
@@ -34,6 +37,7 @@ namespace CMI.Web.Management.DependencyInjection
             builder.RegisterType<NewsDataAccess>().AsSelf().InstancePerRequest().WithParameter(nameof(connectionString), connectionString);
 
             builder.Register(c => BusConfig.CreateGetElasticLogRecordsRequestClient()).As<IRequestClient<GetElasticLogRecordsRequest>>();
+            builder.Register(c => BusConfig.GetExternalContentClient()).As<IRequestClient<SyncInfoForReportRequest>>();
             builder.Register(c => BusConfig.RegisterDownloadAssetCallback()).As<IRequestClient<DownloadAssetRequest>>();
             builder.Register(c => BusConfig.CreateDoesExistInCacheClient()).As<IRequestClient<DoesExistInCacheRequest>>();
 
@@ -46,7 +50,13 @@ namespace CMI.Web.Management.DependencyInjection
 
             builder.RegisterType<OrderManagerClient>().As<IPublicOrder>();
             builder.RegisterType<FileDownloadHelper>().As<IFileDownloadHelper>();
-        }
+            builder.RegisterType<ReportExternalContentHelper>().As<IReportExternalContentHelper>();
+            builder.RegisterType<AbbyyProgressInfo>().SingleInstance().AsSelf();
 
+            // register all the consumers
+            builder.RegisterAssemblyTypes(Assembly.GetExecutingAssembly())
+                .AssignableTo<IConsumer>()
+                .AsSelf();
+        }
     }
 }

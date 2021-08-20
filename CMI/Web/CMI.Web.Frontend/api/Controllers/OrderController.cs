@@ -186,7 +186,9 @@ namespace CMI.Web.Frontend.api.Controllers
 
             var bestimmer = new KontingentBestimmer(digitalisierungsbeschraenkungSettings);
             var userOrderings = await client.GetOrderings(user.Id);
-            var result = bestimmer.BestimmeKontingent(userOrderings, role, user);
+
+
+            var result = bestimmer.BestimmeKontingent(userOrderings, user);
 
             return Ok(result);
         }
@@ -332,13 +334,9 @@ namespace CMI.Web.Frontend.api.Controllers
         {
             var kontingentBestimmer = new KontingentBestimmer(digitalisierungsbeschraenkungSettings);
             var orderings = await client.GetOrderings(bestellerId);
-            var role = bestellungIstFuerAndererBenutzer
-                ? AccessRolesEnum.BAR
-                : userAccess.RolePublicClient.GetRolePublicClientEnum();
-
-            var user = userDataAccess.GetUser(bestellerId);
-
-            var result = kontingentBestimmer.BestimmeKontingent(orderings, role, user);
+        
+            User user = userDataAccess.GetUser(bestellungIstFuerAndererBenutzer ? bestellerId : ControllerHelper.GetCurrentUserId());
+            var result = kontingentBestimmer.BestimmeKontingent(orderings, user);
 
             // User should usually not see these validation-messages, as it is already checked on client (so no translation here)
             if (result.Bestellkontingent <= 0)

@@ -28,7 +28,6 @@ namespace CMI.Manager.Vecteur.Infrastructure
             builder.RegisterType<VecteurActionsClient>().As<IVecteurActions>();
             builder.RegisterType<DigitizationHelper>().As<IDigitizationHelper>();
             builder.RegisterType<MessageBusCallHelper>().As<IMessageBusCallHelper>();
-            builder.RegisterType<DigitizationHelper>().As<IDigitizationHelper>();
             return builder;
         }
 

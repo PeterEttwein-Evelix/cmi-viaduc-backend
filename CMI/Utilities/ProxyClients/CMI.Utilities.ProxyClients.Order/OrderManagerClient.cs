@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using CMI.Contract.Common;
 using CMI.Contract.Messaging;
 using CMI.Contract.Order;
 using MassTransit;
@@ -154,12 +156,12 @@ namespace CMI.Utilities.ProxyClients.Order
                 TerminDigitalisierung = terminDigitalisierung
             });
         }
-
+        
         public async Task<IEnumerable<StatusHistory>> GetStatusHistoryForOrderItem(int orderItemId)
         {
             var client = GetRequestClient<GetStatusHistoryForOrderItemRequest>(BusConstants
                 .OrderManagerGetStatusHistoryForOrderItemRequestQueue);
-            var result = await client.GetResponse<GetStatusHistoryForOrderItemResponse>(new GetStatusHistoryForOrderItemRequest {OrderItemId = orderItemId});
+            var result = await client.GetResponse<GetStatusHistoryForOrderItemResponse>(new GetStatusHistoryForOrderItemRequest { OrderItemId = orderItemId });
             return result.Message.StatusHistory;
         }
 
@@ -169,6 +171,15 @@ namespace CMI.Utilities.ProxyClients.Order
                 .OrderManagerFindOrderingHistoryForVeRequestQueue);
             var result = await client.GetResponse<FindOrderingHistoryForVeResponse>(new FindOrderingHistoryForVeRequest {VeId = veId});
             return result.Message.History;
+        }
+
+        public async Task<List<PrimaerdatenAufbereitungItem>> GetPrimaerdatenReportRecords(LogDataFilter filter)
+        {
+            var client = GetRequestClient<GetPrimaerdatenReportRecordsRequest>();
+            var request = new GetPrimaerdatenReportRecordsRequest {Filter = filter};
+            var result = await client.GetResponse<GetPrimaerdatenReportRecordsResponse>(request);
+
+            return result.Message.Items;
         }
 
         public async Task EntscheidFreigabeHinterlegen(string currentUserId, List<int> orderItemIds, ApproveStatus entscheid,
@@ -340,6 +351,14 @@ namespace CMI.Utilities.ProxyClients.Order
             var client = GetRequestClient<MahnungVersendenRequest>(BusConstants.OrderManagerMahnungVersendenRequestQueue,
                 200);
             return (await client.GetResponse<MahnungVersendenResponse>(mahnungRequest)).Message;
+        }
+
+        public async Task<ErinnerungVersendenResponse> ErinnerungVersenden(List<int> orderItemIds, string language, string userId)
+        {
+            var erinnerungRequest = new ErinnerungVersendenRequest { OrderItemIds = orderItemIds, Language = language, UserId = userId };
+            var client = GetRequestClient<ErinnerungVersendenRequest>(BusConstants.OrderManagerErinnerungVersendenRequestQueue,
+                200);
+            return (await client.GetResponse<ErinnerungVersendenResponse>(erinnerungRequest)).Message;
         }
 
         private IRequestClient<T1> GetRequestClient<T1>(string queueEndpoint = "", int requestTimeOutInSeconds = 0) where T1 : class

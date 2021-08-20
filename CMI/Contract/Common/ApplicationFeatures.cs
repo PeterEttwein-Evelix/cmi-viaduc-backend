@@ -167,7 +167,18 @@ namespace CMI.Contract.Common
         AuftragsuebersichtAuftraegeKannReponieren = 10000093,
 
         [Description("Auftragsübersicht-Aufträge-Mahnung versenden ausführen")]
-        AuftragsuebersichtAuftraegeMahnungVersenden = 10000094
+        AuftragsuebersichtAuftraegeMahnungVersenden = 10000094,
+
+        [Description("Auftragsübersicht-Aufträge-Erinnerung versenden ausführen")]
+        AuftragsuebersichtAuftraegeErinnerungVersenden = 10000095,
+
+
+        [Description("Statisktikdaten einsehen und exportieren dürfen")]
+        ReportingStatisticsReportsEinsehen = 10000096,
+
+        [Description("Einsehen des Fortschritts der DocumentConverter Operationen")]
+        ReportingStatisticsConverterProgressEinsehen = 10000097
+
     }
 
     public class ApplicationFeatureInfo

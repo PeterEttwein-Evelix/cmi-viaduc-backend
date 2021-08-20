@@ -51,9 +51,10 @@ namespace CMI.Manager.Order.Infrastructure
             builder.RegisterType(typeof(SimpleConsumer<IsUniqueVeInBasketRequest, IsUniqueVeInBasketResponse, IPublicOrder>)).As(typeof(IConsumer<IsUniqueVeInBasketRequest>));
             builder.RegisterType(typeof(SimpleConsumer<GetDigipoolRequest, GetDigipoolResponse, IPublicOrder>)).As(typeof(IConsumer<GetDigipoolRequest>));
             builder.RegisterType(typeof(SimpleConsumer<UpdateDigipoolRequest, UpdateDigipoolResponse, IPublicOrder>)).As(typeof(IConsumer<UpdateDigipoolRequest>));
-            builder.RegisterType(typeof(SimpleConsumer<MarkOrderAsFaultedRequest, MarkOrderAsFaultedResponse, OrderManager>)).As(typeof(IConsumer<MarkOrderAsFaultedRequest>));
-            builder.RegisterType(typeof(SimpleConsumer<ResetAufbereitungsfehlerRequest, ResetAufbereitungsfehlerResponse, OrderManager>)).As(typeof(IConsumer<ResetAufbereitungsfehlerRequest>));
 
+            builder.RegisterType(typeof(SimpleConsumer<MarkOrderAsFaultedRequest, MarkOrderAsFaultedResponse, OrderManager>)).As(typeof(IConsumer<MarkOrderAsFaultedRequest>));
+            builder.RegisterType(typeof(SimpleConsumer<ResetAufbereitungsfehlerRequest, ResetAufbereitungsfehlerResponse, IPublicOrder>)).As(typeof(IConsumer<ResetAufbereitungsfehlerRequest>));
+            builder.RegisterType(typeof(SimpleConsumer<GetPrimaerdatenReportRecordsRequest, GetPrimaerdatenReportRecordsResponse, IPublicOrder>)).As(typeof(IConsumer<GetPrimaerdatenReportRecordsRequest>));
             // just register all the consumers
             builder.RegisterAssemblyTypes(Assembly.GetExecutingAssembly())
                 .AssignableTo<IConsumer>()

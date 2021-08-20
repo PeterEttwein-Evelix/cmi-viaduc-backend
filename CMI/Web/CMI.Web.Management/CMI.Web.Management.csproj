@@ -64,8 +64,8 @@
     <Reference Include="Castle.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=407dd0808d44fbdc, processorArchitecture=MSIL">
       <HintPath>..\..\..\packages\Castle.Core.4.4.0\lib\net45\Castle.Core.dll</HintPath>
     </Reference>
-    <Reference Include="Elasticsearch.Net, Version=6.0.0.0, Culture=neutral, PublicKeyToken=96c599bbe3e70f5d, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\Elasticsearch.Net.6.4.2\lib\net461\Elasticsearch.Net.dll</HintPath>
+    <Reference Include="Elasticsearch.Net, Version=7.0.0.0, Culture=neutral, PublicKeyToken=96c599bbe3e70f5d, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\Elasticsearch.Net.7.12.1\lib\net461\Elasticsearch.Net.dll</HintPath>
     </Reference>
     <Reference Include="GreenPipes, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b800c4cfcdeea87b, processorArchitecture=MSIL">
       <HintPath>..\..\..\packages\GreenPipes.4.0.0\lib\netstandard2.0\GreenPipes.dll</HintPath>
@@ -145,8 +145,8 @@
       <Private>True</Private>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Nest, Version=6.0.0.0, Culture=neutral, PublicKeyToken=96c599bbe3e70f5d, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\NEST.6.4.2\lib\net461\Nest.dll</HintPath>
+    <Reference Include="Nest, Version=7.0.0.0, Culture=neutral, PublicKeyToken=96c599bbe3e70f5d, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\NEST.7.12.1\lib\net461\Nest.dll</HintPath>
     </Reference>
     <Reference Include="NewId, Version=3.0.3.0, Culture=neutral, PublicKeyToken=b8e0e9f2f1e657fa, processorArchitecture=MSIL">
       <HintPath>..\..\..\packages\NewId.3.0.3\lib\net452\NewId.dll</HintPath>
@@ -175,8 +175,8 @@
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Data.Linq" />
-    <Reference Include="System.Diagnostics.DiagnosticSource, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Diagnostics.DiagnosticSource.4.7.1\lib\net46\System.Diagnostics.DiagnosticSource.dll</HintPath>
+    <Reference Include="System.Diagnostics.DiagnosticSource, Version=5.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\System.Diagnostics.DiagnosticSource.5.0.0\lib\net46\System.Diagnostics.DiagnosticSource.dll</HintPath>
     </Reference>
     <Reference Include="System.IdentityModel.Services" />
     <Reference Include="System.IO, Version=4.1.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
@@ -206,8 +206,8 @@
       <Private>True</Private>
       <Private>True</Private>
     </Reference>
-    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=4.0.6.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\..\packages\System.Runtime.CompilerServices.Unsafe.4.7.0\lib\netstandard2.0\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=5.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\System.Runtime.CompilerServices.Unsafe.5.0.0\lib\net45\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
     </Reference>
     <Reference Include="System.Runtime.Extensions, Version=4.1.1.1, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\..\..\packages\System.Runtime.Extensions.4.3.1\lib\net462\System.Runtime.Extensions.dll</HintPath>
@@ -215,6 +215,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="System.Runtime.InteropServices" />
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Security.Cryptography.Encoding, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\..\..\packages\System.Security.Cryptography.Encoding.4.3.0\lib\net46\System.Security.Cryptography.Encoding.dll</HintPath>
     </Reference>
@@ -358,9 +359,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="api\Controllers\ApiManagementControllerBase.cs" />
+    <Compile Include="api\Controllers\ConverterProgressController.cs" />
     <Compile Include="api\Controllers\FileController.cs" />
     <Compile Include="api\Controllers\LogController.cs" />
     <Compile Include="api\Controllers\MonitoringController.cs" />
+    <Compile Include="api\Controllers\ReportController.cs" />
+    <Compile Include="api\Data\AbbyyProgressInfo.cs" />
     <Compile Include="api\Data\AbschliessenParams.cs" />
     <Compile Include="api\Data\AushebungsauftraegeDruckenParams.cs" />
     <Compile Include="api\Data\EntscheidFreigabeHinterlegenParams.cs" />
@@ -383,6 +387,7 @@
     <Compile Include="api\Controllers\SystemController.cs" />
     <Compile Include="api\Data\DigipoolPostData.cs" />
     <Compile Include="api\Data\EntscheidGesuchHinterlegenParams.cs" />
+    <Compile Include="api\Data\ErinnerungVersendenPostData.cs" />
     <Compile Include="api\Data\InVorlageExportierenParams.cs" />
     <Compile Include="api\Data\MahnungVersendenPostData.cs" />
     <Compile Include="api\Data\TokenPostData.cs" />
@@ -397,6 +402,8 @@
     <Compile Include="App_Start\WebConfig.cs" />
     <Compile Include="Auth\ManagementAuthExtensions.cs" />
     <Compile Include="Auth\ManagementUserAccess.cs" />
+    <Compile Include="Consumers\AbbyyProgressEventConsumer.cs" />
+    <Compile Include="Consumers\DocumentConverterServiceStartedEventConsumer.cs" />
     <Compile Include="Controllers\BaseController.cs" />
     <Compile Include="Controllers\HomeController.cs" />
     <Compile Include="DependencyInjection\ManagementInjectables.cs" />
@@ -406,7 +413,9 @@
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
+    <Compile Include="Helpers\IReportExternalContentHelper.cs" />
     <Compile Include="Helpers\ManagementTranslationHelper.cs" />
+    <Compile Include="Helpers\ReportExternalContentHelper.cs" />
     <Compile Include="ParameterSettings\AushebungsauftraegeTemplate.cs" />
     <Compile Include="ParameterSettings\LaenderSetting.cs" />
     <Compile Include="ParameterSettings\StatusUebergangSettings.cs" />
@@ -449,6 +458,10 @@
     <ProjectReference Include="..\..\Contract\Common\CMI.Contract.Common.csproj">
       <Project>{045835a1-50c3-4d61-947a-7398a9d70706}</Project>
       <Name>CMI.Contract.Common</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Contract\DocumentConverter\CMI.Contract.DocumentConverter.csproj">
+      <Project>{8C031477-0680-4A2B-A7CE-8A6434DF00BC}</Project>
+      <Name>CMI.Contract.DocumentConverter</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\Contract\Management\CMI.Contract.Management.csproj">
       <Project>{D690DB56-489B-4ABD-8E9C-19287E7F2306}</Project>

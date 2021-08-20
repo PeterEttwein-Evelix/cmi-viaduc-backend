@@ -116,6 +116,10 @@ namespace CMI.Access.Sql.Viaduc
             MapXmlFields(obj, reader);
         }
 
+        public static T? GetValueOrNull<T>(this object value) where T : struct
+        {
+            return value is DBNull ? null : (T?)value;
+        }
 
         private static void MapAllFields<TTargetType, TTargetFieldType>(TTargetType targetObj, Func<string, TTargetFieldType> convert,
             string[] dataReaderFieldNames)

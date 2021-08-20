@@ -60,7 +60,9 @@
     <Compile Include="AccessRoles.cs" />
     <Compile Include="ActionStatus.cs" />
     <Compile Include="ArchiveRecord.cs" />
+    <Compile Include="AssetFileBase.cs" />
     <Compile Include="CacheRetentionCategory.cs" />
+    <Compile Include="AssetConversionFile.cs" />
     <Compile Include="DataSourceRequest.cs" />
     <Compile Include="Digitalisierungsauftrag.Designer.cs" />
     <Compile Include="DigitizationOrderDataResult.cs" />
@@ -72,6 +74,7 @@
     <Compile Include="EditRequiresFeatureAttribute.cs" />
     <Compile Include="ElasticLogRecord.cs" />
     <Compile Include="ElasticRawLogRecord.cs" />
+    <Compile Include="Extensions\StringExtensions.cs" />
     <Compile Include="GetElasticLogRecordsResult.cs" />
     <Compile Include="IEditRequiresFeatureAttribute.cs" />
     <Compile Include="ElasticArchiveRecord.cs" />
@@ -94,10 +97,13 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="QueryDateRange.cs" />
     <Compile Include="QueryDateRangeEnum.cs" />
+    <Compile Include="SyncInfoForReportResult.cs" />
     <Compile Include="RepositoryPackageExtension.cs" />
     <Compile Include="RepositoryPackageInfoResult.cs" />
     <Compile Include="RepositoryPackageResult.cs" />
     <Compile Include="RequiredDtoField.cs" />
+    <Compile Include="AssetExtractionFile.cs" />
+    <Compile Include="SyncInfoForReport.cs" />
     <Compile Include="ViaducDataSchema.Designer.cs" />
   </ItemGroup>
   <ItemGroup>

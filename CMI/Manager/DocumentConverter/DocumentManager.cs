@@ -32,6 +32,8 @@ namespace CMI.Manager.DocumentConverter
         ExtractionResult ExtractText(string jobGuid, FileInfo sourceFile);
 
         int? GetPagesRemaining();
+
+        bool TryOcrTextExtraction(out string text);
     }
 
     public class DocumentManager : IDocumentManager
@@ -158,6 +160,40 @@ namespace CMI.Manager.DocumentConverter
                 Log.Warning(ex, "Exception on get remaining pages");
             }
             return null;
+        }
+
+        public bool TryOcrTextExtraction(out string text)
+        {
+            const string fileName = "AbbyyTiffTest.tif";
+
+            var assemblyLocation = AppDomain.CurrentDomain.BaseDirectory;
+            var img = Resources.AbbyyTiffTest;
+            var path = Path.Combine(assemblyLocation, fileName);
+            var file = new FileInfo(path);
+
+            if (!file.Exists)
+            {
+                img.Save(path);
+                file.Refresh();
+                if (!file.Exists)
+                {
+                    text = $"Unable to find file {file.FullName}";
+                    return false;
+                }
+            }
+
+            extractor.SetAbbyyInfosIfNeccessary(DocumentConverterSettings.Default.PathToAbbyyFrEngineDll, DocumentConverterSettings.Default.MissingAbbyyPathInstallationMessage);
+            var abbyyExtractor = extractor.GetAbbyyExtractor();
+            var result = abbyyExtractor.ExtractText(new Doc(file, Guid.NewGuid().ToString()), new DefaultTextExtractorSettings("TextExtraction_Speed"));
+
+            if (result.HasError)
+            {
+                text = $"Could not extract text from sample file. ({result.ErrorMessage})";
+                return false;
+            }
+
+            text = result.ToString();
+            return true;
         }
 
 
